@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cube Solver</title>
+    <meta
+      name="description"
+      content="Tool to solve Rubik's Cube 3×3. Introduce the state manually or import a TXT file."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.5.0/remixicon.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <script>
+      try {
+        var t = localStorage.getItem("cube-solver-theme");
+        document.documentElement.setAttribute(
+          "data-theme",
+          t === "niebla" ? "niebla" : "oscuro",
+        );
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "oscuro");
+      }
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
