@@ -12,9 +12,11 @@ function LocalizedApp({ locale }: { locale: Locale }) {
   );
 }
 
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <Routes>
         <Route path="/" element={<LocalizedApp locale="en" />} />
         <Route path="/es" element={<LocalizedApp locale="es" />} />
