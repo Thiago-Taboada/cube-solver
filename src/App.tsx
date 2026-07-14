@@ -33,7 +33,7 @@ import {
   type SolveResult,
   type ValidationStatus,
 } from "./ui/cubeInput";
-import { solveFacelets } from "./core/solver/Kociemba";
+import { solveBandaged } from "./core/solver/BandagedSolver";
 import { useT } from "./i18n";
 import "./styles.css";
 
@@ -355,11 +355,15 @@ export function App() {
         return;
       }
 
-      const outcome = solveFacelets(facelets);
+      const outcome = solveBandaged(cube, bandageState);
       if (!outcome.ok) {
+        const message =
+          outcome.error === "BANDAGED_UNSOLVABLE"
+            ? t("error.bandagedUnsolvable")
+            : outcome.error;
         setValidationStatus("invalid");
         setValidationDiagnostics([]);
-        setValidationErrors([outcome.error]);
+        setValidationErrors([message]);
         setHighlightedStickers(new Set());
         setSolveResult(null);
         setIsSolving(false);
@@ -373,7 +377,7 @@ export function App() {
       });
       setIsSolving(false);
     }, 30);
-  }, [facelets, t]);
+  }, [facelets, bandageState, t]);
 
   const copySolution = useCallback(() => {
     if (!solveResult) return;

@@ -8,3 +8,9 @@ export {
   type SolveOk,
   type SolveOutcome,
 } from "./Kociemba";
+
+export {
+  isBandagedPathLegal,
+  solveBandaged,
+  verifyBandagedSolution,
+} from "./BandagedSolver";

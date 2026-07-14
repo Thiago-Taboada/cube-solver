@@ -561,3 +561,114 @@ export function formatCubeFileWithBandage(
   const base = colorNet.endsWith("\n") ? colorNet : `${colorNet}\n`;
   return `${base}\n${section}`;
 }
+
+/**
+ * Shell cubies that turn with each face (matches CubeState FACE_TURNS).
+ * Centers stay in their layer.
+ */
+const FACE_LAYER: Record<string, ReadonlySet<CubieId>> = {
+  U: new Set(["C0", "C1", "C2", "C3", "E0", "E1", "E2", "E3", "U"]),
+  D: new Set(["C4", "C5", "C6", "C7", "E4", "E5", "E6", "E7", "D"]),
+  R: new Set(["C0", "C3", "C4", "C7", "E0", "E4", "E8", "E11", "R"]),
+  L: new Set(["C1", "C2", "C5", "C6", "E2", "E6", "E9", "E10", "L"]),
+  F: new Set(["C0", "C1", "C4", "C5", "E1", "E5", "E8", "E9", "F"]),
+  B: new Set(["C2", "C3", "C6", "C7", "E3", "E7", "E10", "E11", "B"]),
+};
+
+/** Clockwise quarter-turn of shell slots (a→b→c→d→a), matching CubeState. */
+const FACE_SLOT_CYCLES: Record<
+  string,
+  {
+    corners: readonly [number, number, number, number];
+    edges: readonly [number, number, number, number];
+  }
+> = {
+  U: { corners: [0, 1, 2, 3], edges: [0, 1, 2, 3] },
+  D: { corners: [4, 7, 6, 5], edges: [4, 7, 6, 5] },
+  R: { corners: [0, 3, 7, 4], edges: [0, 11, 4, 8] },
+  L: { corners: [1, 5, 6, 2], edges: [2, 9, 6, 10] },
+  F: { corners: [0, 4, 5, 1], edges: [1, 8, 5, 9] },
+  B: { corners: [3, 2, 6, 7], edges: [3, 10, 7, 11] },
+};
+
+/**
+ * A move is legal iff every bandage edge has both ends in the turning
+ * layer or both outside it (no fused pair is split by the turn).
+ */
+export function canMove(state: BandageState, move: string): boolean {
+  if (state.size === 0) return true;
+  const face = move[0]!;
+  const layer = FACE_LAYER[face];
+  if (!layer) return true;
+  for (const key of state) {
+    const [a, b] = parseBandageKey(key);
+    if (layer.has(a) !== layer.has(b)) return false;
+  }
+  return true;
+}
+
+function mapSlotQuarter(face: string, cubie: CubieId): CubieId {
+  if (
+    cubie === "U" ||
+    cubie === "R" ||
+    cubie === "F" ||
+    cubie === "D" ||
+    cubie === "L" ||
+    cubie === "B"
+  ) {
+    return cubie;
+  }
+  const cycles = FACE_SLOT_CYCLES[face];
+  if (!cycles) return cubie;
+
+  if (cubie.startsWith("C")) {
+    const i = Number(cubie.slice(1));
+    const [a, b, c, d] = cycles.corners;
+    if (i === a) return `C${b}`;
+    if (i === b) return `C${c}`;
+    if (i === c) return `C${d}`;
+    if (i === d) return `C${a}`;
+    return cubie;
+  }
+  if (cubie.startsWith("E")) {
+    const i = Number(cubie.slice(1));
+    const [a, b, c, d] = cycles.edges;
+    if (i === a) return `E${b}`;
+    if (i === b) return `E${c}`;
+    if (i === c) return `E${d}`;
+    if (i === d) return `E${a}`;
+    return cubie;
+  }
+  return cubie;
+}
+
+function mapSlotByPower(face: string, cubie: CubieId, power: number): CubieId {
+  let id = cubie;
+  for (let i = 0; i < power; i++) id = mapSlotQuarter(face, id);
+  return id;
+}
+
+/** Permute bandage edges with the face turn (fusions move with the shell). */
+export function applyBandageMove(
+  state: BandageState,
+  move: string,
+): BandageState {
+  if (state.size === 0) return state;
+  const face = move[0]!;
+  const power: 1 | 2 | 3 = move.endsWith("2")
+    ? 2
+    : move.endsWith("'")
+      ? 3
+      : 1;
+  const next = new Set<BandageEdgeKey>();
+  for (const key of state) {
+    const [a, b] = parseBandageKey(key);
+    next.add(
+      bandageKey(
+        mapSlotByPower(face, a, power),
+        mapSlotByPower(face, b, power),
+      ),
+    );
+  }
+  return next;
+}

@@ -121,4 +121,6 @@ export const es: EnMessages = {
   "error.emptyFile":
     "El archivo está vacío. Debe contener el net de caras o 54 letras (W, R, G, Y, O, B).",
   "error.readCube": "No se pudo leer el cubo",
+  "error.bandagedUnsolvable":
+    "No se encontró solución con las uniones actuales (movimientos bloqueados).",
 };

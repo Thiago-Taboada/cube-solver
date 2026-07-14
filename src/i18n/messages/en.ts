@@ -117,6 +117,8 @@ export const en = {
   "error.emptyFile":
     "The file is empty. It must contain the face net or 54 letters (W, R, G, Y, O, B).",
   "error.readCube": "Could not read the cube",
+  "error.bandagedUnsolvable":
+    "No solution found with the current bandages (some moves are blocked).",
 } as const;
 
 export type MessageKey = keyof typeof en;
