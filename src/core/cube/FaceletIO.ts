@@ -258,7 +258,19 @@ export function faceletsToCube(facelets: Facelets): CubeState {
 }
 
 export function parseCubeFile(text: string): CubeState {
-  return faceletsToCube(parseFaceletNet(text));
+  const { colorText } = splitCubeFileColorsOnly(text);
+  return faceletsToCube(parseFaceletNet(colorText));
+}
+
+/** Strip optional BANDAGE section so color parsing stays compatible. */
+function splitCubeFileColorsOnly(text: string): { colorText: string } {
+  const lines = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n");
+  const idx = lines.findIndex((line) => line.trim().toUpperCase() === "BANDAGE");
+  if (idx < 0) return { colorText: text };
+  return { colorText: lines.slice(0, idx).join("\n") };
 }
 
 export function serializeCube(cube: CubeState): string {

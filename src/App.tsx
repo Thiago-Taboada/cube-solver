@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatFaceletNet, serializeCube, type Color } from "./core/cube/FaceletIO";
+import { serializeCube, type Color } from "./core/cube/FaceletIO";
 import { CubeState } from "./core/cube/CubeState";
 import { randomScramble } from "./core/cube/Scramble";
+import {
+  applyCenterColorsToLockedBlocks,
+  applyJoinPaintColors,
+  autoFillFaceLs,
+  componentStickers,
+  emptyBandageState,
+  faceBlockStickers,
+  isFaceBlockLockedToCenter,
+  stickerToCubie,
+  toggleBandage,
+  type BandageState,
+  type CubieId,
+} from "./core/cube/Bandage";
 import { Header, Footer } from "./ui/Chrome";
 import { CubeNet } from "./ui/CubeNet";
 import { Cube3DViews } from "./ui/Cube3D";
-import { ToolsPanel, type ViewMode } from "./ui/ToolsPanel";
+import { ToolsPanel, type EditMode, type ViewMode } from "./ui/ToolsPanel";
 import { SolutionPanel, type TimerStatus } from "./ui/SolutionPanel";
 import {
   CENTER_INDICES,
@@ -14,6 +27,7 @@ import {
 } from "./ui/colors";
 import {
   parseCubeInput,
+  exportCubeText,
   tryValidateFacelets,
   type FaceletDiagnostic,
   type SolveResult,
@@ -23,12 +37,28 @@ import { solveFacelets } from "./core/solver/Kociemba";
 import { useT } from "./i18n";
 import "./styles.css";
 
+interface EditorSnapshot {
+  facelets: Color[];
+  bandageEdges: string[];
+}
+
 export function App() {
   const t = useT();
   const [facelets, setFacelets] = useState<Color[]>(() => solvedFaceletColors());
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSticker, setSelectedSticker] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("flat");
+  const [editMode, setEditMode] = useState<EditMode>("paint");
+  const [bandageState, setBandageState] = useState<BandageState>(() =>
+    emptyBandageState(),
+  );
+  const [bandagePick, setBandagePick] = useState<CubieId | null>(null);
+  const [bandagePreview, setBandagePreview] = useState<ReadonlySet<number> | null>(
+    null,
+  );
+  const [bandageFeedback, setBandageFeedback] = useState<string | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const historyRef = useRef<EditorSnapshot[]>([]);
   const [validationStatus, setValidationStatus] =
     useState<ValidationStatus>("idle");
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -71,7 +101,6 @@ export function App() {
   useEffect(() => {
     if (timerStatus !== "running") return;
 
-    // Ignore the click/key that started the timer.
     let armed = false;
     const armId = window.setTimeout(() => {
       armed = true;
@@ -80,7 +109,6 @@ export function App() {
     const onStop = (event: Event) => {
       if (!armed) return;
       const target = event.target;
-      // Let the timer button handle start/stop itself (avoids stop+restart on click).
       if (
         target instanceof Element &&
         target.closest("[data-timer-toggle]")
@@ -107,46 +135,160 @@ export function App() {
     setSolveResult(null);
   }, []);
 
+  const clearHistory = useCallback(() => {
+    historyRef.current = [];
+    setCanUndo(false);
+  }, []);
+
+  const pushHistory = useCallback(() => {
+    historyRef.current.push({
+      facelets: [...facelets],
+      bandageEdges: [...bandageState],
+    });
+    setCanUndo(true);
+  }, [facelets, bandageState]);
+
+  const undo = useCallback(() => {
+    const prev = historyRef.current.pop();
+    if (!prev) {
+      setCanUndo(false);
+      return;
+    }
+    setFacelets(prev.facelets);
+    setBandageState(new Set(prev.bandageEdges));
+    setBandagePick(null);
+    setBandagePreview(null);
+    setBandageFeedback(null);
+    setSelectedSticker(null);
+    setScrambleMoves(null);
+    clearValidation();
+    setCanUndo(historyRef.current.length > 0);
+  }, [clearValidation]);
+
+  const changeEditMode = useCallback((mode: EditMode) => {
+    setEditMode(mode);
+    setBandagePick(null);
+    setBandagePreview(null);
+    setBandageFeedback(null);
+    setSelectedSticker(null);
+  }, []);
+
   const paintSticker = useCallback(
     (index: number) => {
       if (centers.has(index)) return;
+      // Groups fused with a face center keep the center color until separated.
+      if (isFaceBlockLockedToCenter(index, bandageState)) return;
       const color = STICKER_COLORS[selectedColor]!.label;
+      const block = faceBlockStickers(index, bandageState);
+      // Skip no-op paints (same color already).
+      const wouldChange = block.some(
+        (i) =>
+          !centers.has(i) &&
+          !isFaceBlockLockedToCenter(i, bandageState) &&
+          facelets[i] !== color,
+      );
+      if (!wouldChange) return;
+
+      pushHistory();
       setFacelets((prev) => {
         const next = [...prev];
-        next[index] = color;
+        for (const i of block) {
+          if (!centers.has(i) && !isFaceBlockLockedToCenter(i, bandageState)) {
+            next[i] = color;
+          }
+        }
         return next;
       });
       setSelectedSticker(index);
       setScrambleMoves(null);
       clearValidation();
     },
-    [centers, selectedColor, clearValidation],
+    [centers, selectedColor, bandageState, facelets, pushHistory, clearValidation],
+  );
+
+  const handleBandageClick = useCallback(
+    (index: number) => {
+      const cubie = stickerToCubie(index);
+      setSelectedSticker(index);
+      setBandageFeedback(null);
+
+      if (bandagePick === null) {
+        setBandagePreview(null);
+        setBandagePick(cubie);
+        return;
+      }
+
+      if (bandagePick === cubie) {
+        setBandagePick(null);
+        setBandagePreview(null);
+        return;
+      }
+
+      const next = toggleBandage(bandageState, bandagePick, cubie);
+      if (!next) {
+        setBandageFeedback(t("edit.bandageBad"));
+        setBandagePreview(null);
+        setBandagePick(cubie);
+        return;
+      }
+
+      pushHistory();
+      const firstCubie = bandagePick;
+      const filled = autoFillFaceLs(next);
+      setBandageState(filled);
+      setFacelets((prev) =>
+        applyJoinPaintColors(prev, filled, cubie, firstCubie),
+      );
+      // Solid preview of the new piece; pick cleared so next join starts fresh.
+      setBandagePick(null);
+      setBandagePreview(new Set(componentStickers(cubie, filled)));
+    },
+    [bandagePick, bandageState, pushHistory, t],
+  );
+
+  const onStickerClick = useCallback(
+    (index: number) => {
+      if (editMode === "bandage") handleBandageClick(index);
+      else paintSticker(index);
+    },
+    [editMode, handleBandageClick, paintSticker],
   );
 
   const reset = useCallback(() => {
     setFacelets(solvedFaceletColors());
     setSelectedSticker(null);
     setScrambleMoves(null);
+    setBandageState(emptyBandageState());
+    setBandagePick(null);
+    setBandagePreview(null);
+    setBandageFeedback(null);
+    clearHistory();
     clearValidation();
-  }, [clearValidation]);
+  }, [clearValidation, clearHistory]);
 
   const scramble = useCallback(() => {
+    pushHistory();
     const { moves, facelets: next } = randomScramble();
-    setFacelets([...next]);
+    setFacelets(applyCenterColorsToLockedBlocks([...next], bandageState));
     setSelectedSticker(null);
     setScrambleMoves(moves);
     clearValidation();
-  }, [clearValidation]);
+  }, [clearValidation, bandageState, pushHistory]);
 
   const importText = useCallback(
     (text: string) => {
-      const { facelets: next } = parseCubeInput(text);
+      pushHistory();
+      const { facelets: next, bandage } = parseCubeInput(text);
       setFacelets(next);
+      setBandageState(bandage);
+      setBandagePick(null);
+      setBandagePreview(null);
+      setBandageFeedback(null);
       setSelectedSticker(null);
       setScrambleMoves(null);
       clearValidation();
     },
-    [clearValidation],
+    [clearValidation, pushHistory],
   );
 
   const downloadExample = useCallback(() => {
@@ -161,7 +303,7 @@ export function App() {
   }, []);
 
   const exportCube = useCallback(() => {
-    const content = formatFaceletNet(facelets);
+    const content = exportCubeText(facelets, bandageState);
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -169,7 +311,7 @@ export function App() {
     a.download = "cubo.txt";
     a.click();
     URL.revokeObjectURL(url);
-  }, [facelets]);
+  }, [facelets, bandageState]);
 
   const toggleTimer = useCallback(() => {
     if (timerStatus === "running") {
@@ -245,6 +387,23 @@ export function App() {
     });
   }, [solveResult]);
 
+  const allowCenterClick = editMode === "bandage";
+
+  const paintSelectedStickers = useMemo(() => {
+    if (editMode === "paint" && selectedSticker !== null) {
+      return new Set(faceBlockStickers(selectedSticker, bandageState));
+    }
+    if (editMode === "bandage" && bandagePreview) {
+      return bandagePreview;
+    }
+    return null;
+  }, [editMode, selectedSticker, bandageState, bandagePreview]);
+
+  const bandageSelectedStickers = useMemo(() => {
+    if (editMode !== "bandage" || bandagePick === null) return null;
+    return new Set(componentStickers(bandagePick, bandageState));
+  }, [editMode, bandagePick, bandageState]);
+
   return (
     <div className="app-shell">
       <Header />
@@ -254,13 +413,20 @@ export function App() {
           <aside className="layout__aside">
             <ToolsPanel
               selectedColor={selectedColor}
-              onSelectColor={setSelectedColor}
+              onSelectColor={(index) => {
+                setSelectedColor(index);
+                changeEditMode("paint");
+              }}
+              editMode={editMode}
+              onEditModeChange={changeEditMode}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               onImportText={(text) => {
                 importText(text);
               }}
               onReset={reset}
+              onUndo={undo}
+              canUndo={canUndo}
               onScramble={scramble}
               onSolve={solve}
               onCopySolution={copySolution}
@@ -270,6 +436,7 @@ export function App() {
               onExport={exportCube}
               onToggleTimer={toggleTimer}
               timerStatus={timerStatus}
+              bandageFeedback={bandageFeedback}
             />
           </aside>
 
@@ -285,11 +452,16 @@ export function App() {
                       facelets={facelets}
                       selectedSticker={selectedSticker}
                       highlightedStickers={highlightedStickers}
-                      onStickerClick={paintSticker}
-                    />
-                  </div>
+                      selectedBlockStickers={paintSelectedStickers}
+                      pickStickers={bandageSelectedStickers}
+                      bandageState={bandageState}
+                      allowCenterClick={allowCenterClick}
+                      onStickerClick={onStickerClick}
+                    />                  </div>
                   <p className="panel__hint panel__hint--center">
-                    {t("cube.flatHint")}
+                    {editMode === "bandage"
+                      ? t("edit.bandageHint")
+                      : t("cube.flatHint")}
                   </p>
                 </>
               ) : (
@@ -298,10 +470,16 @@ export function App() {
                     facelets={facelets}
                     selectedSticker={selectedSticker}
                     highlightedStickers={highlightedStickers}
-                    onStickerClick={paintSticker}
+                    selectedBlockStickers={paintSelectedStickers}
+                    pickStickers={bandageSelectedStickers}
+                    bandageState={bandageState}
+                    allowCenterClick={allowCenterClick}
+                    onStickerClick={onStickerClick}
                   />
                   <p className="panel__hint panel__hint--center">
-                    {t("cube.3dHint")}
+                    {editMode === "bandage"
+                      ? t("edit.bandageHint")
+                      : t("cube.3dHint")}
                   </p>
                 </>
               )}

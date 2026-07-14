@@ -3,14 +3,19 @@ import { useT } from "../i18n";
 import { STICKER_COLORS } from "./colors";
 
 export type ViewMode = "flat" | "3d";
+export type EditMode = "paint" | "bandage";
 
 interface ToolsPanelProps {
   selectedColor: number;
   onSelectColor: (index: number) => void;
+  editMode: EditMode;
+  onEditModeChange: (mode: EditMode) => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onImportText: (text: string) => void;
   onReset: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
   onScramble: () => void;
   onSolve: () => void;
   onCopySolution: () => void;
@@ -20,15 +25,20 @@ interface ToolsPanelProps {
   onExport: () => void;
   onToggleTimer: () => void;
   timerStatus: "idle" | "running" | "stopped";
+  bandageFeedback: string | null;
 }
 
 export function ToolsPanel({
   selectedColor,
   onSelectColor,
+  editMode,
+  onEditModeChange,
   viewMode,
   onViewModeChange,
   onImportText,
   onReset,
+  onUndo,
+  canUndo,
   onScramble,
   onSolve,
   onCopySolution,
@@ -38,6 +48,7 @@ export function ToolsPanel({
   onExport,
   onToggleTimer,
   timerStatus,
+  bandageFeedback,
 }: ToolsPanelProps) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +104,36 @@ export function ToolsPanel({
           })}
         </div>
         <p className="panel__hint">{t("palette.hint")}</p>
+      </section>
+
+      <hr className="panel__rule" />
+
+      <section>
+        <h4 className="panel__eyebrow">{t("edit.title")}</h4>
+        <div className="view-toggle" role="group" aria-label={t("edit.title")}>
+          <button
+            type="button"
+            className={`view-toggle__btn${editMode === "paint" ? " view-toggle__btn--active" : ""}`}
+            onClick={() => onEditModeChange("paint")}
+          >
+            <i className="ri-paint-brush-line" aria-hidden />
+            <span className="view-toggle__label">{t("edit.paint")}</span>
+          </button>
+          <button
+            type="button"
+            className={`view-toggle__btn${editMode === "bandage" ? " view-toggle__btn--active" : ""}`}
+            onClick={() => onEditModeChange("bandage")}
+          >
+            <i className="ri-links-line" aria-hidden />
+            <span className="view-toggle__label">{t("edit.bandage")}</span>
+          </button>
+        </div>
+        {editMode === "bandage" && (
+          <p className="panel__hint">{t("edit.bandageHint")}</p>
+        )}
+        {bandageFeedback && (
+          <p className="banner banner--error">{bandageFeedback}</p>
+        )}
       </section>
 
       <hr className="panel__rule" />
@@ -164,6 +205,15 @@ export function ToolsPanel({
           <button type="button" className="btn btn--ghost" onClick={onReset}>
             <i className="ri-refresh-line" aria-hidden />
             {t("tools.reset")}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={onUndo}
+            disabled={!canUndo}
+          >
+            <i className="ri-arrow-go-back-line" aria-hidden />
+            {t("tools.undo")}
           </button>
           <button type="button" className="btn btn--ghost" onClick={onScramble}>
             <i className="ri-shuffle-line" aria-hidden />

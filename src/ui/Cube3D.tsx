@@ -1,3 +1,5 @@
+import type { BandageState } from "../core/cube/Bandage";
+import { joinClassNames, visualGridJoins } from "../core/cube/Bandage";
 import type { Color } from "../core/cube/FaceletIO";
 import { useT } from "../i18n";
 import { CENTER_INDICES, hexFor } from "./colors";
@@ -16,6 +18,10 @@ interface Cube3DViewsProps {
   facelets: readonly Color[];
   selectedSticker: number | null;
   highlightedStickers?: ReadonlySet<number>;
+  selectedBlockStickers?: ReadonlySet<number> | null;
+  pickStickers?: ReadonlySet<number> | null;
+  bandageState: BandageState;
+  allowCenterClick?: boolean;
   onStickerClick: (index: number) => void;
 }
 
@@ -58,6 +64,10 @@ export function Cube3DViews({
   facelets,
   selectedSticker,
   highlightedStickers,
+  selectedBlockStickers,
+  pickStickers,
+  bandageState,
+  allowCenterClick = false,
   onStickerClick,
 }: Cube3DViewsProps) {
   return (
@@ -68,6 +78,10 @@ export function Cube3DViews({
         facelets={facelets}
         selectedSticker={selectedSticker}
         highlightedStickers={highlightedStickers}
+        selectedBlockStickers={selectedBlockStickers}
+        pickStickers={pickStickers}
+        bandageState={bandageState}
+        allowCenterClick={allowCenterClick}
         onStickerClick={onStickerClick}
       />
       <IsoCube
@@ -76,6 +90,10 @@ export function Cube3DViews({
         facelets={facelets}
         selectedSticker={selectedSticker}
         highlightedStickers={highlightedStickers}
+        selectedBlockStickers={selectedBlockStickers}
+        pickStickers={pickStickers}
+        bandageState={bandageState}
+        allowCenterClick={allowCenterClick}
         onStickerClick={onStickerClick}
         variant="bottom"
       />
@@ -89,6 +107,10 @@ function IsoCube({
   facelets,
   selectedSticker,
   highlightedStickers,
+  selectedBlockStickers,
+  pickStickers,
+  bandageState,
+  allowCenterClick,
   onStickerClick,
   variant = "top",
 }: {
@@ -97,6 +119,10 @@ function IsoCube({
   facelets: readonly Color[];
   selectedSticker: number | null;
   highlightedStickers?: ReadonlySet<number>;
+  selectedBlockStickers?: ReadonlySet<number> | null;
+  pickStickers?: ReadonlySet<number> | null;
+  bandageState: BandageState;
+  allowCenterClick: boolean;
   onStickerClick: (index: number) => void;
   variant?: "top" | "bottom";
 }) {
@@ -116,22 +142,34 @@ function IsoCube({
                 const faceletIndex = face.start + face.mapIndex(local);
                 const color = facelets[faceletIndex]!;
                 const isCenter = CENTER_INDICES.has(faceletIndex);
-                const selected = selectedSticker === faceletIndex;
+                const inBlock = selectedBlockStickers?.has(faceletIndex) ?? false;
+                const inPick = pickStickers?.has(faceletIndex) ?? false;
+                const selected =
+                  selectedSticker === faceletIndex && !inBlock && !inPick;
                 const highlighted =
                   highlightedStickers?.has(faceletIndex) ?? false;
                 const light = color === "W" || color === "Y";
                 const name = t(`color.${color}`);
+                const joins = visualGridJoins(
+                  local,
+                  (l) => face.start + face.mapIndex(l),
+                  bandageState,
+                );
+                const joinClasses = joinClassNames(joins, "iso-sticker");
 
                 return (
                   <button
                     key={faceletIndex}
                     type="button"
-                    disabled={isCenter}
+                    disabled={isCenter && !allowCenterClick}
                     className={[
                       "iso-sticker",
                       isCenter ? "iso-sticker--center" : "",
                       selected ? "iso-sticker--selected" : "",
+                      inBlock ? "iso-sticker--block-selected" : "",
+                      inPick ? "iso-sticker--block-pick" : "",
                       highlighted ? "iso-sticker--error" : "",
+                      joinClasses,
                     ]
                       .filter(Boolean)
                       .join(" ")}
