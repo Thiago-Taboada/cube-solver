@@ -143,19 +143,19 @@ export function ToolsPanel({
         <div className="view-toggle" role="group" aria-label={t("view.type")}>
           <button
             type="button"
-            className={`view-toggle__btn${viewMode === "flat" ? " view-toggle__btn--active" : ""}`}
-            onClick={() => onViewModeChange("flat")}
-          >
-            <i className="ri-layout-grid-line" aria-hidden />
-            <span className="view-toggle__label">{t("view.flat")}</span>
-          </button>
-          <button
-            type="button"
             className={`view-toggle__btn${viewMode === "3d" ? " view-toggle__btn--active" : ""}`}
             onClick={() => onViewModeChange("3d")}
           >
             <i className="ri-box-3-line" aria-hidden />
             <span className="view-toggle__label">{t("view.3d")}</span>
+          </button>
+          <button
+            type="button"
+            className={`view-toggle__btn${viewMode === "flat" ? " view-toggle__btn--active" : ""}`}
+            onClick={() => onViewModeChange("flat")}
+          >
+            <i className="ri-layout-grid-line" aria-hidden />
+            <span className="view-toggle__label">{t("view.flat")}</span>
           </button>
         </div>
       </section>

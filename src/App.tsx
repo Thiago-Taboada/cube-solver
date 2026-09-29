@@ -47,7 +47,7 @@ export function App() {
   const [facelets, setFacelets] = useState<Color[]>(() => solvedFaceletColors());
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSticker, setSelectedSticker] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("flat");
+  const [viewMode, setViewMode] = useState<ViewMode>("3d");
   const [editMode, setEditMode] = useState<EditMode>("paint");
   const [bandageState, setBandageState] = useState<BandageState>(() =>
     emptyBandageState(),
