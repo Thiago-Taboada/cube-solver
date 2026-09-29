@@ -1,3 +1,5 @@
+import type { BandageState } from "../core/cube/Bandage";
+import { joinClassNames, stickerJoins } from "../core/cube/Bandage";
 import type { Color } from "../core/cube/FaceletIO";
 import { useT } from "../i18n";
 import { CENTER_INDICES, FACE_LAYOUT, hexFor } from "./colors";
@@ -6,6 +8,12 @@ interface CubeNetProps {
   facelets: readonly Color[];
   selectedSticker: number | null;
   highlightedStickers?: ReadonlySet<number>;
+  /** Paint-mode: stickers in the selected face block (solid outline). */
+  selectedBlockStickers?: ReadonlySet<number> | null;
+  /** Bandage-mode: stickers of the pending pick (dotted outline). */
+  pickStickers?: ReadonlySet<number> | null;
+  bandageState: BandageState;
+  allowCenterClick?: boolean;
   onStickerClick: (index: number) => void;
 }
 
@@ -13,6 +21,10 @@ export function CubeNet({
   facelets,
   selectedSticker,
   highlightedStickers,
+  selectedBlockStickers,
+  pickStickers,
+  bandageState,
+  allowCenterClick = false,
   onStickerClick,
 }: CubeNetProps) {
   return (
@@ -34,6 +46,10 @@ export function CubeNet({
                 facelets={facelets}
                 selectedSticker={selectedSticker}
                 highlightedStickers={highlightedStickers}
+                selectedBlockStickers={selectedBlockStickers}
+                pickStickers={pickStickers}
+                bandageState={bandageState}
+                allowCenterClick={allowCenterClick}
                 onStickerClick={onStickerClick}
               />
             );
@@ -50,6 +66,10 @@ function FaceGrid({
   facelets,
   selectedSticker,
   highlightedStickers,
+  selectedBlockStickers,
+  pickStickers,
+  bandageState,
+  allowCenterClick,
   onStickerClick,
 }: {
   label: string;
@@ -57,6 +77,10 @@ function FaceGrid({
   facelets: readonly Color[];
   selectedSticker: number | null;
   highlightedStickers?: ReadonlySet<number>;
+  selectedBlockStickers?: ReadonlySet<number> | null;
+  pickStickers?: ReadonlySet<number> | null;
+  bandageState: BandageState;
+  allowCenterClick: boolean;
   onStickerClick: (index: number) => void;
 }) {
   const t = useT();
@@ -69,21 +93,28 @@ function FaceGrid({
           const index = startIndex + i;
           const color = facelets[index]!;
           const isCenter = CENTER_INDICES.has(index);
-          const selected = selectedSticker === index;
+          const inBlock = selectedBlockStickers?.has(index) ?? false;
+          const inPick = pickStickers?.has(index) ?? false;
+          const selected = selectedSticker === index && !inBlock && !inPick;
           const highlighted = highlightedStickers?.has(index) ?? false;
           const light = color === "W" || color === "Y";
           const name = t(`color.${color}`);
+          const joins = stickerJoins(index, bandageState);
+          const joinClasses = joinClassNames(joins, "sticker");
 
           return (
             <button
               key={index}
               type="button"
-              disabled={isCenter}
+              disabled={isCenter && !allowCenterClick}
               className={[
                 "sticker",
                 isCenter ? "sticker--center" : "",
                 selected ? "sticker--selected" : "",
+                inBlock ? "sticker--block-selected" : "",
+                inPick ? "sticker--block-pick" : "",
                 highlighted ? "sticker--error" : "",
+                joinClasses,
               ]
                 .filter(Boolean)
                 .join(" ")}

@@ -3,9 +3,17 @@ import {
   FaceletParseError,
   cubeToFacelets,
   faceletsToCube,
+  formatFaceletNet,
   parseCubeFile,
+  parseFaceletNet,
   type Color,
 } from "../core/cube/FaceletIO";
+import {
+  emptyBandageState,
+  formatCubeFileWithBandage,
+  splitCubeFile,
+  type BandageState,
+} from "../core/cube/Bandage";
 import {
   diagnoseFacelets,
   type FaceletDiagnostic,
@@ -23,11 +31,14 @@ export interface SolveResult {
 
 export type { FaceletDiagnostic };
 
-/** Accepts our net TXT or a flat 54-character color string. */
-export function parseCubeInput(text: string): {
+export interface ParsedCubeInput {
   facelets: Color[];
   cube: CubeState;
-} {
+  bandage: BandageState;
+}
+
+/** Accepts our net TXT (optional BANDAGE section) or a flat 54-character color string. */
+export function parseCubeInput(text: string): ParsedCubeInput {
   const trimmed = text.trim();
   if (!trimmed) {
     throw new FaceletParseError(
@@ -35,21 +46,53 @@ export function parseCubeInput(text: string): {
     );
   }
 
+  let bandage: BandageState = emptyBandageState();
+  let colorText = trimmed;
+
   try {
-    const cube = parseCubeFile(trimmed);
-    return { facelets: [...cubeToFacelets(cube)], cube };
+    const split = splitCubeFile(trimmed);
+    colorText = split.colorText.trim();
+    bandage = split.bandage;
+  } catch (error) {
+    throw new FaceletParseError(
+      error instanceof Error ? error.message : "Bandage inválido",
+    );
+  }
+
+  try {
+    const cube = parseCubeFile(colorText);
+    return { facelets: [...cubeToFacelets(cube)], cube, bandage };
   } catch (netError) {
-    const flat = trimmed.replace(/[\s\n\r\t]/g, "").toUpperCase();
+    const flat = colorText.replace(/[\s\n\r\t]/g, "").toUpperCase();
     if (flat.length === 54 && /^[WRGYOB]+$/.test(flat)) {
       const facelets = [...flat] as Color[];
       const cube = faceletsToCube(facelets);
-      return { facelets, cube };
+      return { facelets, cube, bandage };
+    }
+    // Retry full trimmed string in case BANDAGE marker was a false positive in flat files
+    try {
+      const facelets = [...parseFaceletNet(trimmed)];
+      return {
+        facelets,
+        cube: faceletsToCube(facelets),
+        bandage: emptyBandageState(),
+      };
+    } catch {
+      /* fall through */
     }
     if (netError instanceof FaceletParseError) throw netError;
     throw new FaceletParseError(
       netError instanceof Error ? netError.message : "No se pudo leer el cubo",
     );
   }
+}
+
+/** Color net + optional BANDAGE pairs. */
+export function exportCubeText(
+  facelets: readonly Color[],
+  bandage: BandageState = emptyBandageState(),
+): string {
+  return formatCubeFileWithBandage(formatFaceletNet(facelets), bandage);
 }
 
 export function tryValidateFacelets(facelets: readonly Color[]): {

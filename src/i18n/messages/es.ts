@@ -13,6 +13,12 @@ export const es: EnMessages = {
   "palette.title": "Paleta de colores",
   "palette.hint": "Selecciona un color y haz clic en un sticker para pintarlo.",
   "palette.select": "Seleccionar color {name}",
+  "edit.title": "Modo de edición",
+  "edit.paint": "Pintar",
+  "edit.bandage": "Bandaged",
+  "edit.bandageHint":
+    "Haz clic en una pieza y luego en una adyacente para unirlas o separarlas. Solo vecinos ortogonales.",
+  "edit.bandageBad": "Esas piezas no son adyacentes.",
   "view.title": "Visualización",
   "view.type": "Tipo de vista",
   "view.flat": "Vista plana",
@@ -22,6 +28,7 @@ export const es: EnMessages = {
   "tools.export": "Exportar TXT",
   "tools.example": "Descargar archivo de ejemplo",
   "tools.reset": "Restablecer",
+  "tools.undo": "Deshacer",
   "tools.scramble": "Mezclar",
   "tools.timer": "Cronometrar",
   "tools.timerStop": "Detener",
@@ -114,4 +121,6 @@ export const es: EnMessages = {
   "error.emptyFile":
     "El archivo está vacío. Debe contener el net de caras o 54 letras (W, R, G, Y, O, B).",
   "error.readCube": "No se pudo leer el cubo",
+  "error.bandagedUnsolvable":
+    "No se encontró solución con las uniones actuales (movimientos bloqueados).",
 };
