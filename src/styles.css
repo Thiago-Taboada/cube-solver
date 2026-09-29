@@ -915,13 +915,19 @@ input {
 }
 
 /* Interactive 3D cube (react-three-fiber). A single orbitable canvas that
-   replaces the former two-corner CSS view. */
+   replaces the former two-corner CSS view. Fills the center panel and scales
+   its height with the viewport so the cube reads large on desktop. */
 .cube3d-stage {
   width: 100%;
-  aspect-ratio: 1;
-  max-width: min(100%, 30rem);
+  /* Grow with the viewport but stay comfortably inside the panel. */
+  height: clamp(20rem, 62vh, 40rem);
   margin: 0 auto;
-  background: var(--iso-stage-bg);
+  background:
+    radial-gradient(
+      120% 120% at 50% 18%,
+      color-mix(in oklab, var(--iso-stage-bg) 70%, transparent) 0%,
+      var(--iso-stage-bg) 70%
+    );
   border-radius: clamp(0.5rem, 0.5vw, 0.75rem);
   overflow: hidden;
   touch-action: none; /* let OrbitControls handle drag gestures on touch */

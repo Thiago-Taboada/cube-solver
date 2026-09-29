@@ -181,3 +181,73 @@ export function cubieGroups(): CubieGroup[] {
   }
   return [...map.values()];
 }
+
+/* ------------------------------------------------------------------ */
+/* Layer-turn model (foundation for interface-driven face rotations)  */
+/* ------------------------------------------------------------------ */
+
+/** A quarter/half turn of one face, in standard cube notation. */
+export type FaceTurn = "U" | "R" | "F" | "D" | "L" | "B";
+
+export interface LayerSpec {
+  /** The turning face. */
+  face: FaceTurn;
+  /** Rotation axis of the layer. */
+  axis: Axis;
+  /**
+   * Cells belonging to this layer are those whose coordinate on `axis` equals
+   * `slice` (in {-1,0,1}). Face turns use the outer slice (±1).
+   */
+  slice: number;
+  /**
+   * Sign of a clockwise (as seen from outside the face) quarter turn, in
+   * radians per unit. A clockwise face turn = rotating by `-90°` about the
+   * outward axis using the right-hand rule, hence the per-face sign here.
+   * Multiply by the desired quarter-turn count and by π/2.
+   */
+  clockwiseSign: 1 | -1;
+}
+
+/**
+ * Per-face layer definitions. `axis`/`slice` select which cubie cells move;
+ * `clockwiseSign` fixes the direction so a "U" turn looks clockwise from above,
+ * "R" from the right, etc. — matching how the move engine (Move.ts) defines
+ * face turns. Animation code will rotate the selected cubie groups about
+ * `axis` by `clockwiseSign * quarterTurns * (π/2)`.
+ *
+ * Right-hand rule about +axis:
+ *   U (+Y): clockwise-from-above = negative Y rotation  -> sign -1
+ *   D (-Y): clockwise-from-below = positive Y rotation  -> sign +1
+ *   R (+X): clockwise-from-right = negative X rotation  -> sign -1
+ *   L (-X): clockwise-from-left  = positive X rotation  -> sign +1
+ *   F (+Z): clockwise-from-front = negative Z rotation  -> sign -1
+ *   B (-Z): clockwise-from-back  = positive Z rotation  -> sign +1
+ */
+export const LAYER_SPECS: Record<FaceTurn, LayerSpec> = {
+  U: { face: "U", axis: "y", slice: 1, clockwiseSign: -1 },
+  D: { face: "D", axis: "y", slice: -1, clockwiseSign: 1 },
+  R: { face: "R", axis: "x", slice: 1, clockwiseSign: -1 },
+  L: { face: "L", axis: "x", slice: -1, clockwiseSign: 1 },
+  F: { face: "F", axis: "z", slice: 1, clockwiseSign: -1 },
+  B: { face: "B", axis: "z", slice: -1, clockwiseSign: 1 },
+};
+
+const AXIS_INDEX: Record<Axis, 0 | 1 | 2> = { x: 0, y: 1, z: 2 };
+
+/** True if a cubie cell lies on the given face's turning layer. */
+export function cellInLayer(
+  cell: readonly [number, number, number],
+  face: FaceTurn,
+): boolean {
+  const spec = LAYER_SPECS[face];
+  return cell[AXIS_INDEX[spec.axis]] === spec.slice;
+}
+
+/** Cubie-cell keys that move when a given face turns. */
+export function layerCellKeys(face: FaceTurn): Set<string> {
+  const keys = new Set<string>();
+  for (const group of cubieGroups()) {
+    if (cellInLayer(group.cell, face)) keys.add(group.key);
+  }
+  return keys;
+}

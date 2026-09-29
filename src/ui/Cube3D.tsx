@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, RoundedBox } from "@react-three/drei";
+import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 
 import type { BandageState } from "../core/cube/Bandage";
@@ -53,27 +53,31 @@ export function Cube3DViews({
   return (
     <div className="cube3d-stage" aria-label={t("cube.3dTitle")}>
       <Canvas
-        camera={{ position: [3.4, 3.0, 4.2], fov: 38 }}
+        camera={{ position: [4.6, 4.0, 5.6], fov: 30 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
       >
-        <ambientLight intensity={0.85} />
-        <directionalLight position={[5, 8, 6]} intensity={0.9} />
-        <directionalLight position={[-6, -3, -5]} intensity={0.35} />
+        {/* Lighting: soft ambient + key/fill/rim for plastic volume. */}
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[6, 9, 7]} intensity={1.05} />
+        <directionalLight position={[-7, 2, -4]} intensity={0.4} />
+        <directionalLight position={[0, -6, 3]} intensity={0.2} />
 
+        {/* The whole cube. Each cubie is its own <group> keyed by cell so a
+            future layer turn can rotate exactly the groups in LAYER_SPECS. */}
         <group>
           {groups.map((group) => (
             <group key={group.key} position={cellCenter(group.cell)}>
               {/* Black plastic body */}
               <RoundedBox
                 args={[CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE]}
-                radius={0.08}
-                smoothness={3}
+                radius={0.09}
+                smoothness={4}
               >
                 <meshStandardMaterial
-                  color="#0e0c12"
-                  roughness={0.55}
-                  metalness={0.05}
+                  color="#0d0b10"
+                  roughness={0.5}
+                  metalness={0.08}
                 />
               </RoundedBox>
 
@@ -102,12 +106,27 @@ export function Cube3DViews({
           ))}
         </group>
 
+        {/* Soft contact shadow grounds the cube without any external HDRI. */}
+        <ContactShadows
+          position={[0, -2.15, 0]}
+          scale={9}
+          blur={2.6}
+          opacity={0.42}
+          far={4.5}
+          resolution={512}
+          color="#000000"
+        />
+
         <OrbitControls
+          makeDefault
+          target={[0, 0, 0]}
           enablePan={false}
-          minDistance={4}
-          maxDistance={9}
+          minDistance={5}
+          maxDistance={12}
           enableDamping
           dampingFactor={0.12}
+          rotateSpeed={0.9}
+          zoomSpeed={0.8}
         />
       </Canvas>
     </div>
