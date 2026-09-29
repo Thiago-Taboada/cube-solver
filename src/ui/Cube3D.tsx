@@ -1,18 +1,14 @@
+import { useMemo } from "react";
+import { Canvas, type ThreeEvent } from "@react-three/fiber";
+import { OrbitControls, RoundedBox } from "@react-three/drei";
+import * as THREE from "three";
+
 import type { BandageState } from "../core/cube/Bandage";
-import { joinClassNames, visualGridJoins } from "../core/cube/Bandage";
+import { stickerJoins } from "../core/cube/Bandage";
 import type { Color } from "../core/cube/FaceletIO";
 import { useT } from "../i18n";
 import { CENTER_INDICES, hexFor } from "./colors";
-
-type IsoRole = "top" | "bottom" | "front" | "right";
-
-interface FaceSpec {
-  /** Facelet start index in URFDLB order */
-  start: number;
-  role: IsoRole;
-  /** How to map local 0–8 grid onto the facelets for correct orientation */
-  mapIndex: (local: number) => number;
-}
+import { cubieGroups, type FaceletPlacement } from "./cube3dGeometry";
 
 interface Cube3DViewsProps {
   facelets: readonly Color[];
@@ -25,41 +21,22 @@ interface Cube3DViewsProps {
   onStickerClick: (index: number) => void;
 }
 
-/** Identity map: row-major 0–8 as stored. */
-function id(i: number): number {
-  return i;
-}
+/** World-space size of one cubie cell. */
+const CELL = 1;
+/** Gap between cubie bodies (the black frame shows through here). */
+const CUBIE_SIZE = 0.94;
+/** Sticker tile size relative to a face (before bandage-join growth). */
+const STICKER_SIZE = 0.82;
+/** How far a sticker sits above the cubie surface. */
+const STICKER_OFFSET = CUBIE_SIZE / 2 + 0.006;
+
+const ERROR_COLOR = "#e5484d";
 
 /**
- * Rotate a 3×3 face 180° in the plane.
- * Needed on D in the opposite-corner view: the bottom panel’s near edge faces
- * +Z (where we draw B), so D’s B-edge (indices 6–8) must sit on that edge.
+ * Single interactive 3D cube rendered with react-three-fiber. Replaces the
+ * former two-corner CSS view. Cubies are grouped so future layer-turn
+ * animations can rotate a whole layer's `<group>`.
  */
-function rot180(i: number): number {
-  return 8 - i;
-}
-
-/**
- * U·F·R corner. After CSS face transforms, each panel’s local grid already
- * matches facelet storage (U/F/R row-major with F-edge / U-edge as in the net):
- * UFR stickers meet at U8 · F2 · R0.
- */
-const VIEW_UFR: FaceSpec[] = [
-  { start: 0, role: "top", mapIndex: id },
-  { start: 18, role: "front", mapIndex: id },
-  { start: 9, role: "right", mapIndex: id },
-];
-
-/**
- * D·B·L corner (camera from below). B/L use identity so their shared edge
- * lines up; D is rotated 180° so DBL (D6·B8·L6) meets at the near corner.
- */
-const VIEW_DBL: FaceSpec[] = [
-  { start: 45, role: "front", mapIndex: id },
-  { start: 36, role: "right", mapIndex: id },
-  { start: 27, role: "bottom", mapIndex: rot180 },
-];
-
 export function Cube3DViews({
   facelets,
   selectedSticker,
@@ -70,131 +47,225 @@ export function Cube3DViews({
   allowCenterClick = false,
   onStickerClick,
 }: Cube3DViewsProps) {
+  const t = useT();
+  const groups = useMemo(() => cubieGroups(), []);
+
   return (
-    <div className="cube3d-views">
-      <IsoCube
-        title="U · F · R"
-        faces={VIEW_UFR}
-        facelets={facelets}
-        selectedSticker={selectedSticker}
-        highlightedStickers={highlightedStickers}
-        selectedBlockStickers={selectedBlockStickers}
-        pickStickers={pickStickers}
-        bandageState={bandageState}
-        allowCenterClick={allowCenterClick}
-        onStickerClick={onStickerClick}
-      />
-      <IsoCube
-        title="D · B · L"
-        faces={VIEW_DBL}
-        facelets={facelets}
-        selectedSticker={selectedSticker}
-        highlightedStickers={highlightedStickers}
-        selectedBlockStickers={selectedBlockStickers}
-        pickStickers={pickStickers}
-        bandageState={bandageState}
-        allowCenterClick={allowCenterClick}
-        onStickerClick={onStickerClick}
-        variant="bottom"
-      />
+    <div className="cube3d-stage" aria-label={t("cube.3dTitle")}>
+      <Canvas
+        camera={{ position: [3.4, 3.0, 4.2], fov: 38 }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, alpha: true }}
+      >
+        <ambientLight intensity={0.85} />
+        <directionalLight position={[5, 8, 6]} intensity={0.9} />
+        <directionalLight position={[-6, -3, -5]} intensity={0.35} />
+
+        <group>
+          {groups.map((group) => (
+            <group key={group.key} position={cellCenter(group.cell)}>
+              {/* Black plastic body */}
+              <RoundedBox
+                args={[CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE]}
+                radius={0.08}
+                smoothness={3}
+              >
+                <meshStandardMaterial
+                  color="#0e0c12"
+                  roughness={0.55}
+                  metalness={0.05}
+                />
+              </RoundedBox>
+
+              {group.facelets.map((placement) => (
+                <Sticker
+                  key={placement.index}
+                  placement={placement}
+                  color={facelets[placement.index]!}
+                  isCenter={CENTER_INDICES.has(placement.index)}
+                  selected={
+                    selectedSticker === placement.index &&
+                    !(selectedBlockStickers?.has(placement.index) ?? false) &&
+                    !(pickStickers?.has(placement.index) ?? false)
+                  }
+                  inBlock={selectedBlockStickers?.has(placement.index) ?? false}
+                  inPick={pickStickers?.has(placement.index) ?? false}
+                  highlighted={
+                    highlightedStickers?.has(placement.index) ?? false
+                  }
+                  bandageState={bandageState}
+                  allowCenterClick={allowCenterClick}
+                  onStickerClick={onStickerClick}
+                />
+              ))}
+            </group>
+          ))}
+        </group>
+
+        <OrbitControls
+          enablePan={false}
+          minDistance={4}
+          maxDistance={9}
+          enableDamping
+          dampingFactor={0.12}
+        />
+      </Canvas>
     </div>
   );
 }
 
-function IsoCube({
-  title,
-  faces,
-  facelets,
-  selectedSticker,
-  highlightedStickers,
-  selectedBlockStickers,
-  pickStickers,
+/** World-space center of a cubie cell. */
+function cellCenter(cell: readonly [number, number, number]): [number, number, number] {
+  return [cell[0] * CELL, cell[1] * CELL, cell[2] * CELL];
+}
+
+/** Build a quaternion that rotates +Z to the sticker's outward normal. */
+function normalQuaternion(
+  normal: readonly [number, number, number],
+): THREE.Quaternion {
+  const from = new THREE.Vector3(0, 0, 1);
+  const to = new THREE.Vector3(normal[0], normal[1], normal[2]).normalize();
+  return new THREE.Quaternion().setFromUnitVectors(from, to);
+}
+
+function Sticker({
+  placement,
+  color,
+  isCenter,
+  selected,
+  inBlock,
+  inPick,
+  highlighted,
   bandageState,
   allowCenterClick,
   onStickerClick,
-  variant = "top",
 }: {
-  title: string;
-  faces: FaceSpec[];
-  facelets: readonly Color[];
-  selectedSticker: number | null;
-  highlightedStickers?: ReadonlySet<number>;
-  selectedBlockStickers?: ReadonlySet<number> | null;
-  pickStickers?: ReadonlySet<number> | null;
+  placement: FaceletPlacement;
+  color: Color;
+  isCenter: boolean;
+  selected: boolean;
+  inBlock: boolean;
+  inPick: boolean;
+  highlighted: boolean;
   bandageState: BandageState;
   allowCenterClick: boolean;
   onStickerClick: (index: number) => void;
-  variant?: "top" | "bottom";
 }) {
   const t = useT();
+  const disabled = isCenter && !allowCenterClick;
+
+  // Grow the tile toward fused neighbors so bandaged stickers read as one
+  // continuous block (the 3D analogue of the flat view's --join-* classes).
+  // stickerJoins works in facelet space: n=up row, s=down row, e=right col,
+  // w=left col. On the tile, +local-x is `right`(e/w) and +local-y is `up`.
+  const joins = useMemo(
+    () => stickerJoins(placement.index, bandageState),
+    [placement.index, bandageState],
+  );
+  const gap = (1 - STICKER_SIZE) / 2; // half-gap to the cell edge on each side
+  const grow = gap + 0.03; // extend slightly past the seam to overlap
+  const left = joins.w ? grow : 0;
+  const right = joins.e ? grow : 0;
+  const up = joins.n ? grow : 0;
+  const down = joins.s ? grow : 0;
+  const width = STICKER_SIZE + left + right;
+  const height = STICKER_SIZE + up + down;
+  // Shift the tile center by half the asymmetric growth.
+  const shiftX = (right - left) / 2;
+  const shiftY = (up - down) / 2;
+
+  const quaternion = useMemo(
+    () => normalQuaternion(placement.normal),
+    [placement.normal],
+  );
+  const position = useMemo<[number, number, number]>(() => {
+    const n = placement.normal;
+    return [
+      n[0] * STICKER_OFFSET,
+      n[1] * STICKER_OFFSET,
+      n[2] * STICKER_OFFSET,
+    ];
+  }, [placement.normal]);
+
+  const baseColor = hexFor(color);
+  const displayColor = highlighted ? ERROR_COLOR : baseColor;
+
+  // Selection/emphasis is shown by lifting the outline ring and emissive glow.
+  const ringColor = highlighted
+    ? ERROR_COLOR
+    : selected
+      ? "#ffffff"
+      : inBlock
+        ? "#7c5cff"
+        : inPick
+          ? "#38bdf8"
+          : null;
+
+  const handleClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    if (disabled) return;
+    onStickerClick(placement.index);
+  };
+
+  const name = t(`color.${color}`);
+  const ariaLabel = `${name}${isCenter ? t("cube.centerFixed") : ""}${
+    highlighted ? t("cube.errorAria") : ""
+  }`;
 
   return (
-    <div className="iso-block">
-      <h3 className="iso-block__title">{title}</h3>
-      <div className={`iso-stage iso-stage--${variant}`}>
-        <div className="iso-cube" aria-label={title}>
-          {faces.map((face) => (
-            <div
-              key={face.role}
-              className={`iso-face iso-face--${face.role}`}
-            >
-              {Array.from({ length: 9 }, (_, local) => {
-                const faceletIndex = face.start + face.mapIndex(local);
-                const color = facelets[faceletIndex]!;
-                const isCenter = CENTER_INDICES.has(faceletIndex);
-                const inBlock = selectedBlockStickers?.has(faceletIndex) ?? false;
-                const inPick = pickStickers?.has(faceletIndex) ?? false;
-                const selected =
-                  selectedSticker === faceletIndex && !inBlock && !inPick;
-                const highlighted =
-                  highlightedStickers?.has(faceletIndex) ?? false;
-                const light = color === "W" || color === "Y";
-                const name = t(`color.${color}`);
-                const joins = visualGridJoins(
-                  local,
-                  (l) => face.start + face.mapIndex(l),
-                  bandageState,
-                );
-                const joinClasses = joinClassNames(joins, "iso-sticker");
+    <group position={position} quaternion={quaternion}>
+      {/* Sticker face */}
+      <mesh
+        position={[shiftX, shiftY, 0]}
+        onClick={handleClick}
+        onPointerOver={(e) => {
+          if (!disabled) {
+            e.stopPropagation();
+            document.body.style.cursor = "pointer";
+          }
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = "";
+        }}
+      >
+        <planeGeometry args={[width, height]} />
+        <meshStandardMaterial
+          color={displayColor}
+          roughness={0.35}
+          metalness={0.0}
+          emissive={displayColor}
+          emissiveIntensity={selected || inBlock || inPick ? 0.18 : 0.04}
+          // Keep colors readable from both sides while orbiting.
+          side={THREE.FrontSide}
+        />
+      </mesh>
 
-                return (
-                  <button
-                    key={faceletIndex}
-                    type="button"
-                    disabled={isCenter && !allowCenterClick}
-                    className={[
-                      "iso-sticker",
-                      isCenter ? "iso-sticker--center" : "",
-                      selected ? "iso-sticker--selected" : "",
-                      inBlock ? "iso-sticker--block-selected" : "",
-                      inPick ? "iso-sticker--block-pick" : "",
-                      highlighted ? "iso-sticker--error" : "",
-                      joinClasses,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    style={{
-                      backgroundColor: hexFor(color),
-                      borderColor: highlighted
-                        ? undefined
-                        : light
-                          ? "rgba(0,0,0,0.14)"
-                          : "rgba(0,0,0,0.1)",
-                    }}
-                    aria-label={`${name}${isCenter ? t("cube.centerFixed") : ""}${highlighted ? t("cube.errorAria") : ""}`}
-                    title={`${name}${isCenter ? t("cube.centerTitle") : ""}${highlighted ? t("cube.errorTitle") : ""}`}
-                    onClick={() => onStickerClick(faceletIndex)}
-                  >
-                    {isCenter ? (
-                      <span className="iso-sticker__lock">×</span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      {/* Selection / block / pick / error outline ring */}
+      {ringColor && (
+        <lineSegments position={[shiftX, shiftY, 0.004]} raycast={() => null}>
+          <edgesGeometry
+            args={[new THREE.PlaneGeometry(width * 1.01, height * 1.01)]}
+          />
+          <lineBasicMaterial color={ringColor} linewidth={2} />
+        </lineSegments>
+      )}
+
+      {/* Center lock marker */}
+      {isCenter && (
+        <mesh position={[0, 0, 0.006]} raycast={() => null}>
+          <ringGeometry args={[0.06, 0.12, 16]} />
+          <meshBasicMaterial
+            color="#000000"
+            transparent
+            opacity={0.35}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+
+      {/* Accessible label for the sticker (screen readers read the canvas
+          aria-label; per-sticker names are attached via userData for tests). */}
+      <group userData={{ ariaLabel }} />
+    </group>
   );
 }

@@ -46,7 +46,7 @@ export const es: EnMessages = {
   "cube.flatHint":
     "Los centros × son fijos.",
   "cube.3dHint":
-    "Dos ángulos del cubo: U·F·R (blanco arriba) y D·B·L (amarillo abajo). Los centros × son fijos.",
+    "Arrastra para girar el cubo. Haz clic en una pegatina para editarla. Los centros × son fijos.",
   "cube.centerFixed": " (centro fijo)",
   "cube.centerTitle": " — Centro (fijo)",
   "cube.errorTitle": " — Revisar",

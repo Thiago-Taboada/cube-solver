@@ -46,7 +46,7 @@ export const pt: EnMessages = {
   "cube.flatHint":
     "Os centros × são fixos.",
   "cube.3dHint":
-    "Dois ângulos do cubo: U·F·R (branco em cima) e D·B·L (amarelo embaixo). Os centros × são fixos.",
+    "Arraste para girar o cubo. Clique em um adesivo para editá-lo. Os centros × são fixos.",
   "cube.centerFixed": " (centro fixo)",
   "cube.centerTitle": " — Centro (fixo)",
   "cube.errorTitle": " — Revisar",

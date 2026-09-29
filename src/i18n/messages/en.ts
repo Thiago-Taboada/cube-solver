@@ -44,7 +44,7 @@ export const en = {
   "cube.flatHint":
     "Centers marked × are fixed.",
   "cube.3dHint":
-    "Two cube angles: U·F·R (white on top) and D·B·L (yellow on bottom). Centers marked × are fixed.",
+    "Drag to orbit the cube. Click a sticker to edit it. Centers marked × are fixed.",
   "cube.centerFixed": " (fixed center)",
   "cube.centerTitle": " — Center (fixed)",
   "cube.errorTitle": " — Check",
