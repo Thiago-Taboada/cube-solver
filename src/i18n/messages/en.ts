@@ -1,11 +1,11 @@
 export const en = {
   "brand.title": "Cube Solver",
   "brand.sub": "3×3 Rubik's Cube",
-  "theme.toLight": "Switch to light theme",
-  "theme.toDark": "Switch to dark theme",
   "theme.light": "Light theme",
   "theme.dark": "Dark theme",
   "lang.label": "Language",
+  "theme.label": "Theme",
+  "settings.label": "Settings",
   "footer.rights": "All rights reserved.",
 
   "palette.title": "Color palette",

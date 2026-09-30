@@ -3,11 +3,11 @@ import type { EnMessages } from "./en";
 export const pt: EnMessages = {
   "brand.title": "Cube Solver",
   "brand.sub": "Cubo mágico 3×3",
-  "theme.toLight": "Mudar para tema claro",
-  "theme.toDark": "Mudar para tema escuro",
   "theme.light": "Tema claro",
   "theme.dark": "Tema escuro",
   "lang.label": "Idioma",
+  "theme.label": "Tema",
+  "settings.label": "Configurações",
   "footer.rights": "Todos os direitos reservados.",
 
   "palette.title": "Paleta de cores",
