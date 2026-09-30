@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Canvas, type ThreeEvent } from "@react-three/fiber";
+import { useEffect, useMemo } from "react";
+import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -57,6 +57,83 @@ const POSITIVE_AXES: ReadonlyArray<readonly [number, number, number]> = [
 
 const ERROR_COLOR = "#e5484d";
 
+/** Default camera direction/distance, tuned for the desktop panel's wide
+ * aspect ratio. Narrow viewports (mobile portrait) need the camera pulled
+ * further back — see `ResponsiveCameraFit` below — or the cube overflows
+ * the shorter horizontal frustum and reads as badly over-zoomed. */
+const CAMERA_POSITION: readonly [number, number, number] = [4.6, 4.0, 5.6];
+const CAMERA_DISTANCE = Math.hypot(...CAMERA_POSITION);
+const CAMERA_DIRECTION = CAMERA_POSITION.map(
+  (n) => n / CAMERA_DISTANCE,
+) as [number, number, number];
+/** Half-extent (world units) the view must fit so the cube isn't clipped:
+ * the cube reaches ~1.5 from center to a corner; this adds a small margin.
+ * Kept modest so the default framing stays roomy rather than zoomed in. */
+const CUBE_FIT_RADIUS = 1.7;
+/** Furthest the responsive fit will ever push the camera. Keeps it inside
+ * `OrbitControls`' own `maxDistance`, and stops it from also honoring
+ * extreme aspect ratios by zooming out forever. */
+const CAMERA_MAX_DISTANCE = 20;
+/** Global zoom-out multiplier applied to the *final* fitted distance. This
+ * is the single knob for "less zoom everywhere": >1 pulls the camera back
+ * (smaller cube) on every screen, <1 pushes it in. Unlike CUBE_FIT_RADIUS,
+ * it also scales the tuned default distance, so it has an effect even when
+ * the default is what's framing the cube (e.g. on desktop). */
+const CAMERA_ZOOM_OUT = 1.5;
+
+/**
+ * Keeps the whole cube in frame regardless of the canvas's aspect ratio.
+ * The tuned default camera assumes a wide panel; on a narrow (or tall)
+ * frustum the cube would overflow, so we back the camera out along its
+ * original viewing direction only as far as the more restrictive of the
+ * two axes requires. The default distance is always the minimum, so this
+ * never zooms *in* past the tuned framing — it only pulls back when needed.
+ */
+function ResponsiveCameraFit() {
+  const camera = useThree((state) => state.camera);
+  const width = useThree((state) => state.size.width);
+  const height = useThree((state) => state.size.height);
+
+  useEffect(() => {
+    if (!("fov" in camera)) return;
+    const aspect = width / height;
+    const verticalFov = (camera.fov * Math.PI) / 180;
+    const halfVTan = Math.tan(verticalFov / 2);
+    // Distance so CUBE_FIT_RADIUS fits vertically, and (accounting for the
+    // aspect ratio) horizontally. Whichever is larger frames both axes.
+    const distanceForHeight = CUBE_FIT_RADIUS / halfVTan;
+    const distanceForWidth = CUBE_FIT_RADIUS / (halfVTan * aspect);
+    const fitted =
+      Math.max(CAMERA_DISTANCE, distanceForHeight, distanceForWidth) *
+      CAMERA_ZOOM_OUT;
+    // Never closer than the tuned default (no extra zoom-in on wide panels).
+    const distance = Math.min(CAMERA_MAX_DISTANCE, fitted);
+
+    // Preserve the current viewing direction so re-running this effect (e.g.
+    // when the parent re-renders on a paint/bandage toggle) only adjusts the
+    // distance and never snaps the user's orbit back to the default corner.
+    // The cube is centered at the origin, so the direction is the normalized
+    // current position; fall back to the tuned default if it's degenerate.
+    const currentDistance = camera.position.length();
+    const dir =
+      currentDistance > 1e-6
+        ? [
+            camera.position.x / currentDistance,
+            camera.position.y / currentDistance,
+            camera.position.z / currentDistance,
+          ]
+        : CAMERA_DIRECTION;
+    camera.position.set(
+      dir[0] * distance,
+      dir[1] * distance,
+      dir[2] * distance,
+    );
+    camera.updateProjectionMatrix();
+  }, [camera, width, height]);
+
+  return null;
+}
+
 /**
  * Directions (of the 3 positive axes) along which this cubie's plastic body
  * should visually fuse with its neighbor, because the two cubies are in the
@@ -106,10 +183,14 @@ export function Cube3DViews({
   return (
     <div className="cube3d-stage" aria-label={t("cube.3dTitle")}>
       <Canvas
-        camera={{ position: [4.6, 4.0, 5.6], fov: 30 }}
+        camera={{ position: CAMERA_POSITION, fov: 30 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
       >
+        {/* Pulls the camera back on narrow (mobile) aspect ratios so the
+            cube isn't over-zoomed; no-op once the panel is wide enough. */}
+        <ResponsiveCameraFit />
+
         {/* Lighting: soft ambient + key/fill/rim for plastic volume. */}
         <ambientLight intensity={0.7} />
         <directionalLight position={[6, 9, 7]} intensity={1.05} />
@@ -183,7 +264,7 @@ export function Cube3DViews({
           target={[0, 0, 0]}
           enablePan={false}
           minDistance={5}
-          maxDistance={12}
+          maxDistance={CAMERA_MAX_DISTANCE}
           enableDamping
           dampingFactor={0.12}
           rotateSpeed={0.9}
