@@ -3,11 +3,11 @@ import type { EnMessages } from "./en";
 export const pt: EnMessages = {
   "brand.title": "Cube Solver",
   "brand.sub": "Cubo mágico 3×3",
-  "theme.toLight": "Mudar para tema claro",
-  "theme.toDark": "Mudar para tema escuro",
   "theme.light": "Tema claro",
   "theme.dark": "Tema escuro",
   "lang.label": "Idioma",
+  "theme.label": "Tema",
+  "settings.label": "Configurações",
   "footer.rights": "Todos os direitos reservados.",
 
   "palette.title": "Paleta de cores",
@@ -46,7 +46,7 @@ export const pt: EnMessages = {
   "cube.flatHint":
     "Os centros × são fixos.",
   "cube.3dHint":
-    "Dois ângulos do cubo: U·F·R (branco em cima) e D·B·L (amarelo embaixo). Os centros × são fixos.",
+    "Arraste para girar o cubo. Clique em um adesivo para editá-lo. Os centros × são fixos.",
   "cube.centerFixed": " (centro fixo)",
   "cube.centerTitle": " — Centro (fixo)",
   "cube.errorTitle": " — Revisar",

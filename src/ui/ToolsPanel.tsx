@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useT } from "../i18n";
+import { CollapsibleSection } from "./CollapsibleSection";
 import { STICKER_COLORS } from "./colors";
 
 export type ViewMode = "flat" | "3d";
@@ -85,8 +86,7 @@ export function ToolsPanel({
 
   return (
     <div className="panel tools-panel">
-      <section>
-        <h4 className="panel__eyebrow">{t("palette.title")}</h4>
+      <CollapsibleSection title={t("palette.title")}>
         <div className="palette">
           {STICKER_COLORS.map((color) => {
             const name = t(`color.${color.label}`);
@@ -104,13 +104,16 @@ export function ToolsPanel({
           })}
         </div>
         <p className="panel__hint">{t("palette.hint")}</p>
-      </section>
+      </CollapsibleSection>
 
       <hr className="panel__rule" />
 
-      <section>
-        <h4 className="panel__eyebrow">{t("edit.title")}</h4>
+      <CollapsibleSection title={t("edit.title")}>
         <div className="view-toggle" role="group" aria-label={t("edit.title")}>
+          <div
+            className={`view-toggle__thumb${editMode === "bandage" ? " view-toggle__thumb--pos-1" : ""}`}
+            aria-hidden
+          />
           <button
             type="button"
             className={`view-toggle__btn${editMode === "paint" ? " view-toggle__btn--active" : ""}`}
@@ -134,21 +137,16 @@ export function ToolsPanel({
         {bandageFeedback && (
           <p className="banner banner--error">{bandageFeedback}</p>
         )}
-      </section>
+      </CollapsibleSection>
 
       <hr className="panel__rule" />
 
-      <section>
-        <h4 className="panel__eyebrow">{t("view.title")}</h4>
+      <CollapsibleSection title={t("view.title")}>
         <div className="view-toggle" role="group" aria-label={t("view.type")}>
-          <button
-            type="button"
-            className={`view-toggle__btn${viewMode === "flat" ? " view-toggle__btn--active" : ""}`}
-            onClick={() => onViewModeChange("flat")}
-          >
-            <i className="ri-layout-grid-line" aria-hidden />
-            <span className="view-toggle__label">{t("view.flat")}</span>
-          </button>
+          <div
+            className={`view-toggle__thumb${viewMode === "flat" ? " view-toggle__thumb--pos-1" : ""}`}
+            aria-hidden
+          />
           <button
             type="button"
             className={`view-toggle__btn${viewMode === "3d" ? " view-toggle__btn--active" : ""}`}
@@ -157,13 +155,20 @@ export function ToolsPanel({
             <i className="ri-box-3-line" aria-hidden />
             <span className="view-toggle__label">{t("view.3d")}</span>
           </button>
+          <button
+            type="button"
+            className={`view-toggle__btn${viewMode === "flat" ? " view-toggle__btn--active" : ""}`}
+            onClick={() => onViewModeChange("flat")}
+          >
+            <i className="ri-layout-grid-line" aria-hidden />
+            <span className="view-toggle__label">{t("view.flat")}</span>
+          </button>
         </div>
-      </section>
+      </CollapsibleSection>
 
       <hr className="panel__rule" />
 
-      <section>
-        <h4 className="panel__eyebrow">{t("tools.title")}</h4>
+      <CollapsibleSection title={t("tools.title")}>
         <div className="tools">
           <input
             ref={inputRef}
@@ -255,7 +260,7 @@ export function ToolsPanel({
             </button>
           )}
         </div>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

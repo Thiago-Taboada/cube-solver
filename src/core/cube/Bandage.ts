@@ -134,6 +134,24 @@ export function stickerToCubie(sticker: number): CubieId {
   return STICKER_TO_CUBIE[sticker]!;
 }
 
+const CELL_TO_CUBIE: ReadonlyMap<string, CubieId> = new Map(
+  Object.entries(CUBIE_POS).map(([id, pos]) => [
+    `${pos[0]},${pos[1]},${pos[2]}`,
+    id,
+  ]),
+);
+
+/**
+ * Reverse lookup of {@link CUBIE_POS}: which cubie sits at a given lattice
+ * cell. Used by the 3D view to find bandaged neighbors from cube geometry
+ * (which only knows cell coordinates, not cubie ids).
+ */
+export function cubieIdAtCell(
+  cell: readonly [number, number, number],
+): CubieId | undefined {
+  return CELL_TO_CUBIE.get(`${cell[0]},${cell[1]},${cell[2]}`);
+}
+
 export function areCubiesAdjacent(a: CubieId, b: CubieId): boolean {
   if (a === b) return false;
   const pa = CUBIE_POS[a];

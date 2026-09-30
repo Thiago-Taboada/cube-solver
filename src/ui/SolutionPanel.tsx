@@ -1,4 +1,5 @@
 import { formatDiagnostic, useT } from "../i18n";
+import { CollapsibleSection } from "./CollapsibleSection";
 import type { FaceletDiagnostic, SolveResult, ValidationStatus } from "./cubeInput";
 
 export type TimerStatus = "idle" | "running" | "stopped";
@@ -46,8 +47,7 @@ export function SolutionPanel({
     <div className="panel solution-panel">
       {showValidation && (
         <>
-          <section>
-            <h4 className="panel__eyebrow">{t("solution.validation")}</h4>
+          <CollapsibleSection title={t("solution.validation")}>
             <StatusBadge status={validationStatus} />
             {errorMessages.length > 0 && (
               <ul className="error-list">
@@ -63,7 +63,7 @@ export function SolutionPanel({
                 {t("solution.errorHint")}
               </p>
             )}
-          </section>
+          </CollapsibleSection>
           {(showSolution || isSolving || showTimerStats) && (
             <hr className="panel__rule" />
           )}
@@ -72,8 +72,7 @@ export function SolutionPanel({
 
       {showTimerStats && (
         <>
-          <section>
-            <h4 className="panel__eyebrow">{t("solution.stats")}</h4>
+          <CollapsibleSection title={t("solution.stats")}>
             <div className="stats stats--single">
               <div className="stats__card">
                 <p className="stats__value">
@@ -87,14 +86,13 @@ export function SolutionPanel({
                 </p>
               </div>
             </div>
-          </section>
+          </CollapsibleSection>
           {(showSolution || showScramble) && <hr className="panel__rule" />}
         </>
       )}
 
       {showSolution && (
-        <section>
-          <h4 className="panel__eyebrow">{t("solution.algorithm")}</h4>
+        <CollapsibleSection title={t("solution.algorithm")}>
           <div className="algo">
             <p className="algo__text">
               {solveResult.moves.length === 0
@@ -107,12 +105,11 @@ export function SolutionPanel({
               {solveResult.message}
             </p>
           )}
-        </section>
+        </CollapsibleSection>
       )}
 
       {showScramble && (
-        <section>
-          <h4 className="panel__eyebrow">{t("solution.algorithm")}</h4>
+        <CollapsibleSection title={t("solution.algorithm")}>
           <div className="algo">
             <p className="algo__text">{formatMoves(scrambleMoves)}</p>
           </div>
@@ -122,7 +119,7 @@ export function SolutionPanel({
               t("tools.solve"),
             )}
           </p>
-        </section>
+        </CollapsibleSection>
       )}
 
       {showEmpty && (

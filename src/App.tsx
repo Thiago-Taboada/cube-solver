@@ -15,9 +15,10 @@ import {
   type BandageState,
   type CubieId,
 } from "./core/cube/Bandage";
-import { Header, Footer } from "./ui/Chrome";
+import { Footer } from "./ui/Chrome";
 import { CubeNet } from "./ui/CubeNet";
 import { Cube3DViews } from "./ui/Cube3D";
+import { SettingsFab } from "./ui/SettingsFab";
 import { ToolsPanel, type EditMode, type ViewMode } from "./ui/ToolsPanel";
 import { SolutionPanel, type TimerStatus } from "./ui/SolutionPanel";
 import {
@@ -47,7 +48,7 @@ export function App() {
   const [facelets, setFacelets] = useState<Color[]>(() => solvedFaceletColors());
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSticker, setSelectedSticker] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("flat");
+  const [viewMode, setViewMode] = useState<ViewMode>("3d");
   const [editMode, setEditMode] = useState<EditMode>("paint");
   const [bandageState, setBandageState] = useState<BandageState>(() =>
     emptyBandageState(),
@@ -410,8 +411,6 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <Header />
-
       <main className="app-main">
         <div className="layout">
           <aside className="layout__aside">
@@ -509,6 +508,7 @@ export function App() {
       </main>
 
       <Footer />
+      <SettingsFab />
     </div>
   );
 }

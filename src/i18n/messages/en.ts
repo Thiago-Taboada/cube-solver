@@ -1,11 +1,11 @@
 export const en = {
   "brand.title": "Cube Solver",
   "brand.sub": "3×3 Rubik's Cube",
-  "theme.toLight": "Switch to light theme",
-  "theme.toDark": "Switch to dark theme",
   "theme.light": "Light theme",
   "theme.dark": "Dark theme",
   "lang.label": "Language",
+  "theme.label": "Theme",
+  "settings.label": "Settings",
   "footer.rights": "All rights reserved.",
 
   "palette.title": "Color palette",
@@ -44,7 +44,7 @@ export const en = {
   "cube.flatHint":
     "Centers marked × are fixed.",
   "cube.3dHint":
-    "Two cube angles: U·F·R (white on top) and D·B·L (yellow on bottom). Centers marked × are fixed.",
+    "Drag to orbit the cube. Click a sticker to edit it. Centers marked × are fixed.",
   "cube.centerFixed": " (fixed center)",
   "cube.centerTitle": " — Center (fixed)",
   "cube.errorTitle": " — Check",
