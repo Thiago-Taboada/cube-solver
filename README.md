@@ -6,14 +6,9 @@ Construida con **TypeScript**, **React**, **Vite** y **Three.js / React Three Fi
 
 > Documento de diseño completo: [`doc.md`](./doc.md)
 
-## Requisitos
-
-- **Node.js** 18 o superior
-- **npm** (incluido con Node.js)
-
 ## Instalación
 
-Clona el repositorio e instala las dependencias:
+Requiere **Node.js** 18 o superior.
 
 ```bash
 git clone https://github.com/thiago-taboada/cube-solver.git
@@ -23,55 +18,24 @@ npm install
 
 ## Ejecución
 
-### Modo desarrollo
-
-Levanta el servidor de desarrollo de Vite con recarga en caliente:
-
 ```bash
-npm run dev
-```
-
-Luego abre en el navegador la URL que muestra la terminal (por defecto `http://localhost:5173/cube-solver/`).
-
-### Compilar para producción
-
-Verifica los tipos, genera el bundle en `dist/` y prepara el fallback `404.html`:
-
-```bash
-npm run build
-```
-
-### Previsualizar el build
-
-Sirve localmente la versión ya compilada:
-
-```bash
-npm run preview
+npm run dev      # servidor de desarrollo (http://localhost:5173/cube-solver/)
+npm run build    # build de producción en dist/
+npm run preview  # sirve el build ya compilado
 ```
 
 ## Tests
 
-Ejecuta la suite una sola vez:
-
 ```bash
-npm test
-```
-
-En modo watch (se re-ejecuta al guardar cambios):
-
-```bash
-npm run test:watch
+npm test            # ejecuta la suite una vez
+npm run test:watch  # modo watch
 ```
 
 ## Despliegue
 
-El proyecto se publica en GitHub Pages. El script `deploy` compila y sube la carpeta `dist/`:
+El despliegue es automático vía GitHub Actions ([`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml)): cada push a `main` ejecuta tests, build y publica en GitHub Pages.
 
-```bash
-npm run deploy
-```
-
-Sitio publicado: https://thiago-taboada.github.io/cube-solver
+Sitio publicado: https://thiago-taboada.github.io/cube-solver/
 
 ## Formato de entrada (facelet)
 
@@ -123,4 +87,3 @@ cube-solver/
 | `npm run preview` | Sirve el build de producción localmente |
 | `npm test` | Ejecuta los tests una vez (Vitest) |
 | `npm run test:watch` | Tests en modo watch |
-| `npm run deploy` | Publica en GitHub Pages |

@@ -50,13 +50,26 @@ export function App() {
   const [selectedSticker, setSelectedSticker] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("3d");
   const [editMode, setEditMode] = useState<EditMode>("paint");
+  // The user's own fusion configuration, defined on the solved cube. This is
+  // the authoritative bandage: it never shifts on its own, so every scramble
+  // starts from the same user intent.
   const [bandageState, setBandageState] = useState<BandageState>(() =>
     emptyBandageState(),
+  );
+  // When a scramble is applied, the fused pieces move, so the joins must be
+  // drawn on their new positions. This holds that scramble-advanced bandage
+  // for rendering only; null means "show the base bandage as-is". It never
+  // feeds back into a subsequent scramble (which always restarts from base).
+  const [displayBandage, setDisplayBandage] = useState<BandageState | null>(
+    null,
   );
   const [bandagePick, setBandagePick] = useState<CubieId | null>(null);
   const [bandagePreview, setBandagePreview] = useState<ReadonlySet<number> | null>(
     null,
   );
+  // The bandage to render and solve with: the scramble-advanced one while a
+  // scramble is showing, otherwise the user's base configuration.
+  const effectiveBandage = displayBandage ?? bandageState;
   const [bandageFeedback, setBandageFeedback] = useState<string | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const historyRef = useRef<EditorSnapshot[]>([]);
@@ -142,12 +155,14 @@ export function App() {
   }, []);
 
   const pushHistory = useCallback(() => {
+    // Snapshot the visible bandage (base, or scramble-advanced if showing).
+    // Undo restores it as the base and clears the scramble display bandage.
     historyRef.current.push({
       facelets: [...facelets],
-      bandageEdges: [...bandageState],
+      bandageEdges: [...effectiveBandage],
     });
     setCanUndo(true);
-  }, [facelets, bandageState]);
+  }, [facelets, effectiveBandage]);
 
   const undo = useCallback(() => {
     const prev = historyRef.current.pop();
@@ -157,6 +172,7 @@ export function App() {
     }
     setFacelets(prev.facelets);
     setBandageState(new Set(prev.bandageEdges));
+    setDisplayBandage(null);
     setBandagePick(null);
     setBandagePreview(null);
     setBandageFeedback(null);
@@ -178,14 +194,14 @@ export function App() {
     (index: number) => {
       if (centers.has(index)) return;
       // Groups fused with a face center keep the center color until separated.
-      if (isFaceBlockLockedToCenter(index, bandageState)) return;
+      if (isFaceBlockLockedToCenter(index, effectiveBandage)) return;
       const color = STICKER_COLORS[selectedColor]!.label;
-      const block = faceBlockStickers(index, bandageState);
+      const block = faceBlockStickers(index, effectiveBandage);
       // Skip no-op paints (same color already).
       const wouldChange = block.some(
         (i) =>
           !centers.has(i) &&
-          !isFaceBlockLockedToCenter(i, bandageState) &&
+          !isFaceBlockLockedToCenter(i, effectiveBandage) &&
           facelets[i] !== color,
       );
       if (!wouldChange) return;
@@ -194,7 +210,7 @@ export function App() {
       setFacelets((prev) => {
         const next = [...prev];
         for (const i of block) {
-          if (!centers.has(i) && !isFaceBlockLockedToCenter(i, bandageState)) {
+          if (!centers.has(i) && !isFaceBlockLockedToCenter(i, effectiveBandage)) {
             next[i] = color;
           }
         }
@@ -204,7 +220,7 @@ export function App() {
       setScrambleMoves(null);
       clearValidation();
     },
-    [centers, selectedColor, bandageState, facelets, pushHistory, clearValidation],
+    [centers, selectedColor, effectiveBandage, facelets, pushHistory, clearValidation],
   );
 
   const handleBandageClick = useCallback(
@@ -225,7 +241,7 @@ export function App() {
         return;
       }
 
-      const next = toggleBandage(bandageState, bandagePick, cubie);
+      const next = toggleBandage(effectiveBandage, bandagePick, cubie);
       if (!next) {
         setBandageFeedback(t("edit.bandageBad"));
         setBandagePreview(null);
@@ -236,7 +252,10 @@ export function App() {
       pushHistory();
       const firstCubie = bandagePick;
       const filled = autoFillFaceLs(next);
+      // Editing joins consolidates the currently visible bandage as the new
+      // base, so clear the scramble-only display bandage.
       setBandageState(filled);
+      setDisplayBandage(null);
       setFacelets((prev) =>
         applyJoinPaintColors(prev, filled, cubie, firstCubie),
       );
@@ -244,7 +263,7 @@ export function App() {
       setBandagePick(null);
       setBandagePreview(new Set(componentStickers(cubie, filled)));
     },
-    [bandagePick, bandageState, pushHistory, t],
+    [bandagePick, effectiveBandage, pushHistory, t],
   );
 
   const onStickerClick = useCallback(
@@ -260,6 +279,7 @@ export function App() {
     setSelectedSticker(null);
     setScrambleMoves(null);
     setBandageState(emptyBandageState());
+    setDisplayBandage(null);
     setBandagePick(null);
     setBandagePreview(null);
     setBandageFeedback(null);
@@ -269,8 +289,18 @@ export function App() {
 
   const scramble = useCallback(() => {
     pushHistory();
-    const { moves, facelets: next } = randomScramble();
-    setFacelets(applyCenterColorsToLockedBlocks([...next], bandageState));
+    // Always scramble from the solved cube + the user's base bandage, so
+    // pressing scramble repeatedly keeps trying fresh sequences from the same
+    // starting point instead of compounding the previous scramble.
+    const {
+      moves,
+      facelets: next,
+      bandage: nextBandage,
+    } = randomScramble(undefined, bandageState);
+    // nextBandage = the base fusions advanced to the pieces' scrambled
+    // positions; use it only for rendering/solving this scramble.
+    setDisplayBandage(nextBandage);
+    setFacelets(applyCenterColorsToLockedBlocks([...next], nextBandage));
     setSelectedSticker(null);
     setScrambleMoves(moves);
     clearValidation();
@@ -282,6 +312,7 @@ export function App() {
       const { facelets: next, bandage } = parseCubeInput(text);
       setFacelets(next);
       setBandageState(bandage);
+      setDisplayBandage(null);
       setBandagePick(null);
       setBandagePreview(null);
       setBandageFeedback(null);
@@ -304,7 +335,9 @@ export function App() {
   }, []);
 
   const exportCube = useCallback(() => {
-    const content = exportCubeText(facelets, bandageState);
+    // Export the visible state: colors plus the joins on their current
+    // (possibly scramble-advanced) positions, so the file round-trips.
+    const content = exportCubeText(facelets, effectiveBandage);
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -312,7 +345,7 @@ export function App() {
     a.download = "cubo.txt";
     a.click();
     URL.revokeObjectURL(url);
-  }, [facelets, bandageState]);
+  }, [facelets, effectiveBandage]);
 
   const toggleTimer = useCallback(() => {
     if (timerStatus === "running") {
@@ -356,7 +389,7 @@ export function App() {
         return;
       }
 
-      const outcome = solveBandaged(cube, bandageState);
+      const outcome = solveBandaged(cube, effectiveBandage);
       if (!outcome.ok) {
         const message =
           outcome.error === "BANDAGED_UNSOLVABLE"
@@ -378,7 +411,7 @@ export function App() {
       });
       setIsSolving(false);
     }, 30);
-  }, [facelets, bandageState, t]);
+  }, [facelets, effectiveBandage, t]);
 
   const copySolution = useCallback(() => {
     if (!solveResult) return;
@@ -396,18 +429,18 @@ export function App() {
 
   const paintSelectedStickers = useMemo(() => {
     if (editMode === "paint" && selectedSticker !== null) {
-      return new Set(faceBlockStickers(selectedSticker, bandageState));
+      return new Set(faceBlockStickers(selectedSticker, effectiveBandage));
     }
     if (editMode === "bandage" && bandagePreview) {
       return bandagePreview;
     }
     return null;
-  }, [editMode, selectedSticker, bandageState, bandagePreview]);
+  }, [editMode, selectedSticker, effectiveBandage, bandagePreview]);
 
   const bandageSelectedStickers = useMemo(() => {
     if (editMode !== "bandage" || bandagePick === null) return null;
-    return new Set(componentStickers(bandagePick, bandageState));
-  }, [editMode, bandagePick, bandageState]);
+    return new Set(componentStickers(bandagePick, effectiveBandage));
+  }, [editMode, bandagePick, effectiveBandage]);
 
   return (
     <div className="app-shell">
@@ -457,7 +490,7 @@ export function App() {
                       highlightedStickers={highlightedStickers}
                       selectedBlockStickers={paintSelectedStickers}
                       pickStickers={bandageSelectedStickers}
-                      bandageState={bandageState}
+                      bandageState={effectiveBandage}
                       allowCenterClick={allowCenterClick}
                       onStickerClick={onStickerClick}
                     />                  </div>
@@ -475,7 +508,7 @@ export function App() {
                     highlightedStickers={highlightedStickers}
                     selectedBlockStickers={paintSelectedStickers}
                     pickStickers={bandageSelectedStickers}
-                    bandageState={bandageState}
+                    bandageState={effectiveBandage}
                     allowCenterClick={allowCenterClick}
                     onStickerClick={onStickerClick}
                   />
