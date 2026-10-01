@@ -118,6 +118,10 @@ export const es: EnMessages = {
     "Introduce el estado del cubo y pulsa {action} para ver la solución aquí.",
   "solution.cubeSolved": "El cubo ya está resuelto.",
 
+  "history.title": "Tiempos recientes",
+  "history.empty": "Tus últimos 5 tiempos aparecerán aquí.",
+  "history.scrambleLabel": "Mezcla",
+
   "error.emptyFile":
     "El archivo está vacío. Debe contener el net de caras o 54 letras (W, R, G, Y, O, B).",
   "error.readCube": "No se pudo leer el cubo",

@@ -21,6 +21,7 @@ import { Cube3DViews } from "./ui/Cube3D";
 import { SettingsFab } from "./ui/SettingsFab";
 import { ToolsPanel, type EditMode, type ViewMode } from "./ui/ToolsPanel";
 import { SolutionPanel, type TimerStatus } from "./ui/SolutionPanel";
+import { TimeHistoryPanel, type SolveRecord } from "./ui/TimeHistoryPanel";
 import {
   CENTER_INDICES,
   STICKER_COLORS,
@@ -89,6 +90,12 @@ export function App() {
   const [timerStatus, setTimerStatus] = useState<TimerStatus>("idle");
   const [timerMs, setTimerMs] = useState(0);
   const timerStartedAt = useRef<number | null>(null);
+  // Last 5 finished solves, most recent first.
+  const [history, setHistory] = useState<SolveRecord[]>([]);
+  const historyIdRef = useRef(0);
+  // Current scramble, mirrored in a ref so stopTimer can log it without
+  // being recreated on every scramble change.
+  const scrambleRef = useRef<string[] | null>(null);
 
   const centers = useMemo(() => CENTER_INDICES, []);
 
@@ -104,12 +111,23 @@ export function App() {
     return () => window.cancelAnimationFrame(frame);
   }, [timerStatus]);
 
+  useEffect(() => {
+    scrambleRef.current = scrambleMoves;
+  }, [scrambleMoves]);
+
   const stopTimer = useCallback(() => {
     if (timerStartedAt.current === null) return;
     const elapsed = performance.now() - timerStartedAt.current;
     timerStartedAt.current = null;
     setTimerMs(elapsed);
     setTimerStatus("stopped");
+    // Record this solve, keeping only the 5 most recent (newest first).
+    const record: SolveRecord = {
+      id: historyIdRef.current++,
+      timeMs: elapsed,
+      scramble: scrambleRef.current ? [...scrambleRef.current] : null,
+    };
+    setHistory((prev) => [record, ...prev].slice(0, 5));
   }, []);
 
   useEffect(() => {
@@ -147,6 +165,14 @@ export function App() {
     setValidationDiagnostics([]);
     setHighlightedStickers(new Set());
     setSolveResult(null);
+  }, []);
+
+  // Clear the stopwatch back to idle (no running timer, no shown time) so the
+  // solution panel's time disappears on reset/scramble.
+  const resetTimer = useCallback(() => {
+    timerStartedAt.current = null;
+    setTimerStatus("idle");
+    setTimerMs(0);
   }, []);
 
   const clearHistory = useCallback(() => {
@@ -283,9 +309,10 @@ export function App() {
     setBandagePick(null);
     setBandagePreview(null);
     setBandageFeedback(null);
+    resetTimer();
     clearHistory();
     clearValidation();
-  }, [clearValidation, clearHistory]);
+  }, [clearValidation, clearHistory, resetTimer]);
 
   const scramble = useCallback(() => {
     pushHistory();
@@ -303,8 +330,9 @@ export function App() {
     setFacelets(applyCenterColorsToLockedBlocks([...next], nextBandage));
     setSelectedSticker(null);
     setScrambleMoves(moves);
+    resetTimer();
     clearValidation();
-  }, [clearValidation, bandageState, pushHistory]);
+  }, [clearValidation, bandageState, pushHistory, resetTimer]);
 
   const importText = useCallback(
     (text: string) => {
@@ -533,6 +561,7 @@ export function App() {
               timerStatus={timerStatus}
               timerMs={timerMs}
             />
+            <TimeHistoryPanel records={history} />
             {copied && (
               <p className="banner banner--ok copy-toast">{t("copy.ok")}</p>
             )}

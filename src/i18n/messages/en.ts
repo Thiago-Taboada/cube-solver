@@ -114,6 +114,10 @@ export const en = {
     "Enter the cube state and press {action} to see the solution here.",
   "solution.cubeSolved": "The cube is already solved.",
 
+  "history.title": "Recent times",
+  "history.empty": "Your last 5 solve times will appear here.",
+  "history.scrambleLabel": "Scramble",
+
   "error.emptyFile":
     "The file is empty. It must contain the face net or 54 letters (W, R, G, Y, O, B).",
   "error.readCube": "Could not read the cube",
