@@ -14,6 +14,7 @@ interface ToolsPanelProps {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onImportText: (text: string) => void;
+  onImportAlgorithm: (text: string) => void;
   onReset: () => void;
   onUndo: () => void;
   canUndo: boolean;
@@ -23,6 +24,7 @@ interface ToolsPanelProps {
   hasSolution: boolean;
   isSolving: boolean;
   onDownloadExample: () => void;
+  onDownloadAlgorithmExample: () => void;
   onExport: () => void;
   onToggleTimer: () => void;
   timerStatus: "idle" | "running" | "stopped";
@@ -37,6 +39,7 @@ export function ToolsPanel({
   viewMode,
   onViewModeChange,
   onImportText,
+  onImportAlgorithm,
   onReset,
   onUndo,
   canUndo,
@@ -46,6 +49,7 @@ export function ToolsPanel({
   hasSolution,
   isSolving,
   onDownloadExample,
+  onDownloadAlgorithmExample,
   onExport,
   onToggleTimer,
   timerStatus,
@@ -53,10 +57,14 @@ export function ToolsPanel({
 }: ToolsPanelProps) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
+  const algoInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importOk, setImportOk] = useState(false);
 
-  async function handleFile(fileList: FileList | null) {
+  async function handleFile(
+    fileList: FileList | null,
+    onText: (text: string) => void,
+  ) {
     setImportError(null);
     setImportOk(false);
     const file = fileList?.[0];
@@ -67,7 +75,7 @@ export function ToolsPanel({
     }
     try {
       const text = await file.text();
-      onImportText(text);
+      onText(text);
       setImportOk(true);
       window.setTimeout(() => setImportOk(false), 2500);
     } catch (error) {
@@ -177,7 +185,18 @@ export function ToolsPanel({
             accept=".txt,text/plain"
             className="sr-only"
             onChange={(e) => {
-              void handleFile(e.target.files);
+              void handleFile(e.target.files, onImportText);
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={algoInputRef}
+            id="algo-file-input"
+            type="file"
+            accept=".txt,text/plain"
+            className="sr-only"
+            onChange={(e) => {
+              void handleFile(e.target.files, onImportAlgorithm);
               e.target.value = "";
             }}
           />
@@ -188,6 +207,14 @@ export function ToolsPanel({
           >
             <i className="ri-file-upload-line" aria-hidden />
             {t("tools.import")}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={() => algoInputRef.current?.click()}
+          >
+            <i className="ri-list-ordered" aria-hidden />
+            {t("tools.importAlgorithm")}
           </button>
           <button type="button" className="btn btn--ghost" onClick={onExport}>
             <i className="ri-file-download-line" aria-hidden />
@@ -203,6 +230,13 @@ export function ToolsPanel({
             onClick={onDownloadExample}
           >
             {t("tools.example")}
+          </button>
+          <button
+            type="button"
+            className="link-btn"
+            onClick={onDownloadAlgorithmExample}
+          >
+            {t("tools.algorithmExample")}
           </button>
 
           <hr className="panel__rule panel__rule--tight" />

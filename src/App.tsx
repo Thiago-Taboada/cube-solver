@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { serializeCube, type Color } from "./core/cube/FaceletIO";
+import {
+  cubeToFacelets,
+  serializeCube,
+  type Color,
+} from "./core/cube/FaceletIO";
 import { CubeState } from "./core/cube/CubeState";
 import { randomScramble } from "./core/cube/Scramble";
 import {
+  applyBandageMove,
   applyCenterColorsToLockedBlocks,
   applyJoinPaintColors,
   autoFillFaceLs,
@@ -28,6 +33,7 @@ import {
   solvedFaceletColors,
 } from "./ui/colors";
 import {
+  parseAlgorithm,
   parseCubeInput,
   exportCubeText,
   tryValidateFacelets,
@@ -346,9 +352,37 @@ export function App() {
       setBandageFeedback(null);
       setSelectedSticker(null);
       setScrambleMoves(null);
+      resetTimer();
       clearValidation();
     },
-    [clearValidation, pushHistory],
+    [clearValidation, pushHistory, resetTimer],
+  );
+
+  const importAlgorithm = useCallback(
+    (text: string) => {
+      // Parse the moves first; invalid input throws before mutating state.
+      const moves = parseAlgorithm(text);
+      pushHistory();
+      // Apply from the solved cube so the algorithm defines the mix, same as
+      // a scramble. Advance the user's base bandage alongside, so fused
+      // pieces end up (and render) on their new positions.
+      const cube = CubeState.solved().applySequence(moves);
+      let advanced = bandageState;
+      for (const move of moves) advanced = applyBandageMove(advanced, move);
+
+      setFacelets(
+        applyCenterColorsToLockedBlocks([...cubeToFacelets(cube)], advanced),
+      );
+      setDisplayBandage(advanced);
+      setScrambleMoves(moves);
+      setBandagePick(null);
+      setBandagePreview(null);
+      setBandageFeedback(null);
+      setSelectedSticker(null);
+      resetTimer();
+      clearValidation();
+    },
+    [bandageState, clearValidation, pushHistory, resetTimer],
   );
 
   const downloadExample = useCallback(() => {
@@ -357,10 +391,21 @@ export function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "cubo_resuelto_ejemplo.txt";
+    a.download = t("example.cubeFileName");
     a.click();
     URL.revokeObjectURL(url);
-  }, []);
+  }, [t]);
+
+  const downloadAlgorithmExample = useCallback(() => {
+    const content = `${t("example.algorithmComments")}\nR U R' U' R U2 R' U R U' R'`;
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = t("example.algorithmFileName");
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [t]);
 
   const exportCube = useCallback(() => {
     // Export the visible state: colors plus the joins on their current
@@ -488,6 +533,9 @@ export function App() {
               onImportText={(text) => {
                 importText(text);
               }}
+              onImportAlgorithm={(text) => {
+                importAlgorithm(text);
+              }}
               onReset={reset}
               onUndo={undo}
               canUndo={canUndo}
@@ -497,6 +545,7 @@ export function App() {
               hasSolution={solveResult !== null}
               isSolving={isSolving}
               onDownloadExample={downloadExample}
+              onDownloadAlgorithmExample={downloadAlgorithmExample}
               onExport={exportCube}
               onToggleTimer={toggleTimer}
               timerStatus={timerStatus}

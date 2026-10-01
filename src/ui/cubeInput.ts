@@ -8,6 +8,7 @@ import {
   parseFaceletNet,
   type Color,
 } from "../core/cube/FaceletIO";
+import { isMove, type Move } from "../core/cube/Move";
 import {
   emptyBandageState,
   formatCubeFileWithBandage,
@@ -85,6 +86,38 @@ export function parseCubeInput(text: string): ParsedCubeInput {
       netError instanceof Error ? netError.message : "No se pudo leer el cubo",
     );
   }
+}
+
+/**
+ * Parse a scramble/algorithm from text: a whitespace-, comma-, or
+ * newline-separated list of standard 3×3 moves (U, R', F2, …). Lines
+ * starting with `#` are treated as comments. Throws a FaceletParseError
+ * with the offending token if any move is invalid.
+ */
+export function parseAlgorithm(text: string): Move[] {
+  const withoutComments = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"))
+    .join(" ");
+
+  const tokens = withoutComments.split(/[\s,;]+/).filter(Boolean);
+  if (tokens.length === 0) {
+    throw new FaceletParseError(
+      "El algoritmo está vacío. Debe contener movimientos como: R U R' U'",
+    );
+  }
+
+  const moves: Move[] = [];
+  for (const token of tokens) {
+    if (!isMove(token)) {
+      throw new FaceletParseError(`Movimiento inválido: "${token}"`);
+    }
+    moves.push(token);
+  }
+  return moves;
 }
 
 /** Color net + optional BANDAGE pairs. */
