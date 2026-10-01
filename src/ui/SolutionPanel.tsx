@@ -161,11 +161,9 @@ function StatusBadge({ status }: { status: ValidationStatus }) {
 }
 
 function formatMoves(moves: string[]): string {
-  const lines: string[] = [];
-  for (let i = 0; i < moves.length; i += 10) {
-    lines.push(moves.slice(i, i + 10).join(" "));
-  }
-  return lines.join("\n");
+  // Join with spaces and let the container wrap by width (.algo__text uses
+  // pre-wrap), instead of forcing a hard line break every 10 moves.
+  return moves.join(" ");
 }
 
 function renderWithAction(template: string, action: string) {

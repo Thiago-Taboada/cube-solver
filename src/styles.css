@@ -1083,7 +1083,8 @@ input {
   color: var(--foreground-800);
   line-height: 1.6;
   white-space: pre-wrap;
-  word-break: break-all;
+  /* Wrap between moves (at the spaces), never mid-move like "R'". */
+  overflow-wrap: break-word;
   user-select: all;
 }
 
