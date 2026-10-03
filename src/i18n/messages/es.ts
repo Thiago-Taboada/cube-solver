@@ -16,8 +16,10 @@ export const es: EnMessages = {
   "edit.title": "Modo de edición",
   "edit.paint": "Pintar",
   "edit.bandage": "Bandaged",
+  "edit.orbit": "Orbitar",
   "edit.bandageHint":
     "Haz clic en una pieza y luego en una adyacente para unirlas o separarlas. Solo vecinos ortogonales.",
+  "edit.orbitHint": "Arrastra para orbitar el cubo.",
   "edit.bandageBad": "Esas piezas no son adyacentes.",
   "view.title": "Visualización",
   "view.type": "Tipo de vista",

@@ -14,8 +14,10 @@ export const en = {
   "edit.title": "Edit mode",
   "edit.paint": "Paint",
   "edit.bandage": "Bandaged",
+  "edit.orbit": "Orbit",
   "edit.bandageHint":
     "Click a piece, then an adjacent one to join or split them. Only orthogonal neighbors.",
+  "edit.orbitHint": "Drag to orbit the cube.",
   "edit.bandageBad": "Those pieces are not adjacent.",
   "view.title": "Visualization",
   "view.type": "View type",

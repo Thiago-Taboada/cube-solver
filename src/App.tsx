@@ -56,7 +56,7 @@ export function App() {
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedSticker, setSelectedSticker] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("3d");
-  const [editMode, setEditMode] = useState<EditMode>("paint");
+  const [editMode, setEditMode] = useState<EditMode>("orbit");
   // The user's own fusion configuration, defined on the solved cube. This is
   // the authoritative bandage: it never shifts on its own, so every scramble
   // starts from the same user intent.
@@ -300,6 +300,8 @@ export function App() {
 
   const onStickerClick = useCallback(
     (index: number) => {
+      // Orbit mode is view-only: clicks don't edit, so dragging just orbits.
+      if (editMode === "orbit") return;
       if (editMode === "bandage") handleBandageClick(index);
       else paintSticker(index);
     },
@@ -574,7 +576,9 @@ export function App() {
                   <p className="panel__hint panel__hint--center">
                     {editMode === "bandage"
                       ? t("edit.bandageHint")
-                      : t("cube.flatHint")}
+                      : editMode === "orbit"
+                        ? t("edit.orbitHint")
+                        : t("cube.flatHint")}
                   </p>
                 </>
               ) : (
@@ -592,7 +596,9 @@ export function App() {
                   <p className="panel__hint panel__hint--center">
                     {editMode === "bandage"
                       ? t("edit.bandageHint")
-                      : t("cube.3dHint")}
+                      : editMode === "orbit"
+                        ? t("edit.orbitHint")
+                        : t("cube.3dHint")}
                   </p>
                 </>
               )}

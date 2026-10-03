@@ -4,7 +4,7 @@ import { CollapsibleSection } from "./CollapsibleSection";
 import { STICKER_COLORS } from "./colors";
 
 export type ViewMode = "flat" | "3d";
-export type EditMode = "paint" | "bandage";
+export type EditMode = "paint" | "bandage" | "orbit";
 
 interface ToolsPanelProps {
   selectedColor: number;
@@ -117,11 +117,29 @@ export function ToolsPanel({
       <hr className="panel__rule" />
 
       <CollapsibleSection title={t("edit.title")}>
-        <div className="view-toggle" role="group" aria-label={t("edit.title")}>
+        <div
+          className="view-toggle view-toggle--three"
+          role="group"
+          aria-label={t("edit.title")}
+        >
           <div
-            className={`view-toggle__thumb${editMode === "bandage" ? " view-toggle__thumb--pos-1" : ""}`}
+            className={`view-toggle__thumb${
+              editMode === "paint"
+                ? " view-toggle__thumb--pos-1"
+                : editMode === "bandage"
+                  ? " view-toggle__thumb--pos-2"
+                  : ""
+            }`}
             aria-hidden
           />
+          <button
+            type="button"
+            className={`view-toggle__btn${editMode === "orbit" ? " view-toggle__btn--active" : ""}`}
+            onClick={() => onEditModeChange("orbit")}
+          >
+            <i className="ri-drag-move-2-line" aria-hidden />
+            <span className="view-toggle__label">{t("edit.orbit")}</span>
+          </button>
           <button
             type="button"
             className={`view-toggle__btn${editMode === "paint" ? " view-toggle__btn--active" : ""}`}
@@ -141,6 +159,9 @@ export function ToolsPanel({
         </div>
         {editMode === "bandage" && (
           <p className="panel__hint">{t("edit.bandageHint")}</p>
+        )}
+        {editMode === "orbit" && (
+          <p className="panel__hint">{t("edit.orbitHint")}</p>
         )}
         {bandageFeedback && (
           <p className="banner banner--error">{bandageFeedback}</p>
