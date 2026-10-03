@@ -20,6 +20,7 @@ export const pt: EnMessages = {
   "edit.bandageHint":
     "Clique em uma peça e depois em uma adjacente para uni-las ou separá-las. Apenas vizinhos ortogonais.",
   "edit.orbitHint": "Arraste para orbitar o cubo.",
+  "edit.paintHint": "Escolha uma cor e clique em um sticker para pintá-lo.",
   "edit.bandageBad": "Essas peças não são adjacentes.",
   "view.title": "Visualização",
   "view.type": "Tipo de vista",
@@ -125,6 +126,14 @@ export const pt: EnMessages = {
   "solution.empty":
     "Informe o estado do cubo e pressione {action} para ver a solução aqui.",
   "solution.cubeSolved": "O cubo já está resolvido.",
+  "playback.play": "Reproduzir",
+  "playback.pause": "Pausar",
+  "playback.prev": "Movimento anterior",
+  "playback.next": "Próximo movimento",
+  "playback.reset": "Voltar ao início",
+  "playback.start": "Animar solução",
+  "playback.progress": "Movimento {current} de {total}",
+  "playback.hint": "Clique em um movimento para ir a esse estado. Você ainda pode orbitar o cubo.",
 
   "history.title": "Tempos recentes",
   "history.empty": "Seus últimos 5 tempos aparecerão aqui.",

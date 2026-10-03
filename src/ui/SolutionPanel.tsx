@@ -13,6 +13,15 @@ interface SolutionPanelProps {
   isSolving: boolean;
   timerStatus: TimerStatus;
   timerMs: number;
+  playbackActive: boolean;
+  playbackStep: number;
+  playbackPlaying: boolean;
+  onPlaybackStart: () => void;
+  onPlaybackReset: () => void;
+  onPlaybackPrev: () => void;
+  onPlaybackNext: () => void;
+  onPlaybackTogglePlay: () => void;
+  onPlaybackJumpTo: (step: number) => void;
 }
 
 export function SolutionPanel({
@@ -24,6 +33,15 @@ export function SolutionPanel({
   isSolving,
   timerStatus,
   timerMs,
+  playbackActive,
+  playbackStep,
+  playbackPlaying,
+  onPlaybackStart,
+  onPlaybackReset,
+  onPlaybackPrev,
+  onPlaybackNext,
+  onPlaybackTogglePlay,
+  onPlaybackJumpTo,
 }: SolutionPanelProps) {
   const t = useT();
   const showValidation = validationStatus !== "idle";
@@ -93,13 +111,120 @@ export function SolutionPanel({
 
       {showSolution && (
         <CollapsibleSection title={t("solution.algorithm")}>
-          <div className="algo">
-            <p className="algo__text">
-              {solveResult.moves.length === 0
-                ? t("solution.alreadySolved")
-                : formatMoves(solveResult.moves)}
-            </p>
-          </div>
+          {solveResult.moves.length === 0 ? (
+            <div className="algo">
+              <p className="algo__text">{t("solution.alreadySolved")}</p>
+            </div>
+          ) : (
+            <>
+              <div className="algo">
+                <p className="algo__text algo__text--moves">
+                  {solveResult.moves.map((move, i) => {
+                    // During playback, `playbackStep` moves have been applied.
+                    // Highlight the move about to run (index === step) and dim
+                    // the ones already executed (index < step).
+                    const done = playbackActive && i < playbackStep;
+                    const current = playbackActive && i === playbackStep;
+                    return (
+                      <button
+                        key={`${move}-${i}`}
+                        type="button"
+                        className={`algo__move${done ? " algo__move--done" : ""}${
+                          current ? " algo__move--current" : ""
+                        }`}
+                        // Jumping lands on the state *after* this move.
+                        onClick={() => onPlaybackJumpTo(i + 1)}
+                        title={t("playback.hint")}
+                      >
+                        {move}
+                      </button>
+                    );
+                  })}
+                </p>
+              </div>
+
+              <div className="playback">
+                {!playbackActive ? (
+                  <button
+                    type="button"
+                    className="btn btn--secondary playback__start"
+                    onClick={onPlaybackStart}
+                  >
+                    <i className="ri-play-circle-line" aria-hidden />
+                    {t("playback.start")}
+                  </button>
+                ) : (
+                  <>
+                    <div
+                      className="playback__controls"
+                      role="group"
+                      aria-label={t("playback.start")}
+                    >
+                      <button
+                        type="button"
+                        className="playback__btn"
+                        onClick={onPlaybackPrev}
+                        disabled={playbackStep <= 0}
+                        aria-label={t("playback.prev")}
+                        title={t("playback.prev")}
+                      >
+                        <i className="ri-skip-back-mini-line" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        className="playback__btn playback__btn--primary"
+                        onClick={onPlaybackTogglePlay}
+                        aria-label={
+                          playbackPlaying
+                            ? t("playback.pause")
+                            : t("playback.play")
+                        }
+                        title={
+                          playbackPlaying
+                            ? t("playback.pause")
+                            : t("playback.play")
+                        }
+                      >
+                        <i
+                          className={
+                            playbackPlaying ? "ri-pause-fill" : "ri-play-fill"
+                          }
+                          aria-hidden
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        className="playback__btn"
+                        onClick={onPlaybackNext}
+                        disabled={playbackStep >= solveResult.moves.length}
+                        aria-label={t("playback.next")}
+                        title={t("playback.next")}
+                      >
+                        <i className="ri-skip-forward-mini-line" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        className="playback__btn playback__btn--exit"
+                        onClick={onPlaybackReset}
+                        disabled={playbackStep <= 0}
+                        aria-label={t("playback.reset")}
+                        title={t("playback.reset")}
+                      >
+                        <i className="ri-restart-line" aria-hidden />
+                      </button>
+                    </div>
+                    <p className="playback__progress">
+                      {t("playback.progress", {
+                        current: playbackStep,
+                        total: solveResult.moves.length,
+                      })}
+                    </p>
+                  </>
+                )}
+                <p className="panel__hint">{t("playback.hint")}</p>
+              </div>
+            </>
+          )}
           {solveResult.message && (
             <p className="panel__hint" style={{ marginTop: "0.75rem" }}>
               {solveResult.message}

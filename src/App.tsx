@@ -5,6 +5,7 @@ import {
   type Color,
 } from "./core/cube/FaceletIO";
 import { CubeState } from "./core/cube/CubeState";
+import type { Move } from "./core/cube/Move";
 import { randomScramble } from "./core/cube/Scramble";
 import {
   applyBandageMove,
@@ -91,6 +92,14 @@ export function App() {
   );
   const [solveResult, setSolveResult] = useState<SolveResult | null>(null);
   const [isSolving, setIsSolving] = useState(false);
+  // Solution playback. `playbackCube` is the validated cube that was solved;
+  // applying the first N solution moves to it yields the state at step N.
+  // `playbackStep` is that N (0 = initial scrambled state, moves.length =
+  // solved). `playbackPlaying` drives the auto-advance timer. When
+  // `playbackCube` is null, playback is inactive and editing is allowed.
+  const [playbackCube, setPlaybackCube] = useState<CubeState | null>(null);
+  const [playbackStep, setPlaybackStep] = useState(0);
+  const [playbackPlaying, setPlaybackPlaying] = useState(false);
   const [copied, setCopied] = useState(false);
   const [scrambleMoves, setScrambleMoves] = useState<string[] | null>(null);
   const [timerStatus, setTimerStatus] = useState<TimerStatus>("idle");
@@ -484,6 +493,11 @@ export function App() {
         moveCount: outcome.moves.length,
         timeMs: outcome.timeMs,
       });
+      // Remember the solved cube so the solution can be stepped/animated on
+      // the 3D view later. Playback itself starts paused and inactive.
+      setPlaybackCube(cube);
+      setPlaybackStep(0);
+      setPlaybackPlaying(false);
       setIsSolving(false);
     }, 30);
   }, [facelets, effectiveBandage, t]);
@@ -500,7 +514,96 @@ export function App() {
     });
   }, [solveResult]);
 
-  const allowCenterClick = editMode === "bandage";
+  // --- Solution playback -------------------------------------------------
+  const isPlaybackActive = playbackCube !== null;
+  const solutionMoves = solveResult?.moves ?? [];
+
+  // Facelets to display while playback is active: the solved cube with the
+  // first `playbackStep` solution moves applied. Centers of locked bandage
+  // blocks are reapplied so fused groups keep reading as one piece.
+  const playbackFacelets = useMemo(() => {
+    if (!playbackCube) return null;
+    const sliced = solutionMoves.slice(0, playbackStep) as Move[];
+    const cube = playbackCube.applySequence(sliced);
+    return applyCenterColorsToLockedBlocks(
+      [...cubeToFacelets(cube)],
+      effectiveBandage,
+    );
+  }, [playbackCube, solutionMoves, playbackStep, effectiveBandage]);
+
+  const startPlayback = useCallback(() => {
+    if (!solveResult || solveResult.moves.length === 0) return;
+    // Entering playback is view-only; drop any edit selection so the cube
+    // just shows the stepped state (orbit still works).
+    setPlaybackStep(0);
+    setPlaybackPlaying(true);
+    setSelectedSticker(null);
+    setBandagePick(null);
+    setBandagePreview(null);
+  }, [solveResult]);
+
+  // Rewind to the initial scrambled state (step 0) without leaving playback.
+  const playbackReset = useCallback(() => {
+    setPlaybackPlaying(false);
+    setPlaybackStep(0);
+  }, []);
+
+  const playbackPrev = useCallback(() => {
+    setPlaybackPlaying(false);
+    setPlaybackStep((s) => Math.max(0, s - 1));
+  }, []);
+
+  const playbackNext = useCallback(() => {
+    setPlaybackPlaying(false);
+    setPlaybackStep((s) => Math.min(solutionMoves.length, s + 1));
+  }, [solutionMoves.length]);
+
+  const playbackTogglePlay = useCallback(() => {
+    if (solutionMoves.length === 0) return;
+    setPlaybackPlaying((playing) => {
+      if (playing) return false;
+      // Restart from the beginning if we're already at the end.
+      setPlaybackStep((s) => (s >= solutionMoves.length ? 0 : s));
+      return true;
+    });
+  }, [solutionMoves.length]);
+
+  // Jump straight to the state after move `index` (0-based): step = index + 1.
+  const playbackJumpTo = useCallback((step: number) => {
+    setPlaybackPlaying(false);
+    setPlaybackStep(step);
+  }, []);
+
+  // Auto-advance while playing; stop when the solved state is reached.
+  useEffect(() => {
+    if (!playbackPlaying) return;
+    if (playbackStep >= solutionMoves.length) {
+      setPlaybackPlaying(false);
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setPlaybackStep((s) => Math.min(solutionMoves.length, s + 1));
+    }, 650);
+    return () => window.clearTimeout(id);
+  }, [playbackPlaying, playbackStep, solutionMoves.length]);
+
+  // Any edit/scramble/reset that clears the solution also ends playback.
+  useEffect(() => {
+    if (solveResult === null && playbackCube !== null) {
+      setPlaybackCube(null);
+      setPlaybackPlaying(false);
+      setPlaybackStep(0);
+    }
+  }, [solveResult, playbackCube]);
+
+  const allowCenterClick = editMode === "bandage" && !isPlaybackActive;
+
+  // While playback is active the cube shows the derived (stepped) state and
+  // clicks must not edit; the real editor facelets stay untouched underneath.
+  const displayedFacelets = isPlaybackActive
+    ? playbackFacelets ?? facelets
+    : facelets;
+  const onCubeStickerClick = isPlaybackActive ? () => {} : onStickerClick;
 
   const paintSelectedStickers = useMemo(() => {
     if (editMode === "paint" && selectedSticker !== null) {
@@ -564,41 +667,53 @@ export function App() {
                 <>
                   <div className="net-panel__scroll">
                     <CubeNet
-                      facelets={facelets}
-                      selectedSticker={selectedSticker}
+                      facelets={displayedFacelets}
+                      selectedSticker={isPlaybackActive ? null : selectedSticker}
                       highlightedStickers={highlightedStickers}
-                      selectedBlockStickers={paintSelectedStickers}
-                      pickStickers={bandageSelectedStickers}
+                      selectedBlockStickers={
+                        isPlaybackActive ? null : paintSelectedStickers
+                      }
+                      pickStickers={
+                        isPlaybackActive ? null : bandageSelectedStickers
+                      }
                       bandageState={effectiveBandage}
                       allowCenterClick={allowCenterClick}
-                      onStickerClick={onStickerClick}
+                      onStickerClick={onCubeStickerClick}
                     />                  </div>
                   <p className="panel__hint panel__hint--center">
-                    {editMode === "bandage"
-                      ? t("edit.bandageHint")
-                      : editMode === "orbit"
-                        ? t("edit.orbitHint")
-                        : t("cube.flatHint")}
+                    {isPlaybackActive
+                      ? t("edit.orbitHint")
+                      : editMode === "bandage"
+                        ? t("edit.bandageHint")
+                        : editMode === "orbit"
+                          ? t("edit.orbitHint")
+                          : t("cube.flatHint")}
                   </p>
                 </>
               ) : (
                 <>
                   <Cube3DViews
-                    facelets={facelets}
-                    selectedSticker={selectedSticker}
+                    facelets={displayedFacelets}
+                    selectedSticker={isPlaybackActive ? null : selectedSticker}
                     highlightedStickers={highlightedStickers}
-                    selectedBlockStickers={paintSelectedStickers}
-                    pickStickers={bandageSelectedStickers}
+                    selectedBlockStickers={
+                      isPlaybackActive ? null : paintSelectedStickers
+                    }
+                    pickStickers={
+                      isPlaybackActive ? null : bandageSelectedStickers
+                    }
                     bandageState={effectiveBandage}
                     allowCenterClick={allowCenterClick}
-                    onStickerClick={onStickerClick}
+                    onStickerClick={onCubeStickerClick}
                   />
                   <p className="panel__hint panel__hint--center">
-                    {editMode === "bandage"
-                      ? t("edit.bandageHint")
-                      : editMode === "orbit"
-                        ? t("edit.orbitHint")
-                        : t("cube.3dHint")}
+                    {isPlaybackActive
+                      ? t("edit.orbitHint")
+                      : editMode === "bandage"
+                        ? t("edit.bandageHint")
+                        : editMode === "orbit"
+                          ? t("edit.orbitHint")
+                          : t("cube.3dHint")}
                   </p>
                 </>
               )}
@@ -615,6 +730,15 @@ export function App() {
               isSolving={isSolving}
               timerStatus={timerStatus}
               timerMs={timerMs}
+              playbackActive={isPlaybackActive}
+              playbackStep={playbackStep}
+              playbackPlaying={playbackPlaying}
+              onPlaybackStart={startPlayback}
+              onPlaybackReset={playbackReset}
+              onPlaybackPrev={playbackPrev}
+              onPlaybackNext={playbackNext}
+              onPlaybackTogglePlay={playbackTogglePlay}
+              onPlaybackJumpTo={playbackJumpTo}
             />
             <TimeHistoryPanel records={history} />
             {copied && (

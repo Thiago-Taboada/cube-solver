@@ -157,6 +157,9 @@ export function ToolsPanel({
             <span className="view-toggle__label">{t("edit.bandage")}</span>
           </button>
         </div>
+        {editMode === "paint" && (
+          <p className="panel__hint">{t("edit.paintHint")}</p>
+        )}
         {editMode === "bandage" && (
           <p className="panel__hint">{t("edit.bandageHint")}</p>
         )}

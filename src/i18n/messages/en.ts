@@ -18,6 +18,7 @@ export const en = {
   "edit.bandageHint":
     "Click a piece, then an adjacent one to join or split them. Only orthogonal neighbors.",
   "edit.orbitHint": "Drag to orbit the cube.",
+  "edit.paintHint": "Pick a color and click a sticker to paint it.",
   "edit.bandageBad": "Those pieces are not adjacent.",
   "view.title": "Visualization",
   "view.type": "View type",
@@ -121,6 +122,14 @@ export const en = {
   "solution.empty":
     "Enter the cube state and press {action} to see the solution here.",
   "solution.cubeSolved": "The cube is already solved.",
+  "playback.play": "Play",
+  "playback.pause": "Pause",
+  "playback.prev": "Previous move",
+  "playback.next": "Next move",
+  "playback.reset": "Back to start",
+  "playback.start": "Animate solution",
+  "playback.progress": "Move {current} of {total}",
+  "playback.hint": "Click a move to jump to that state. You can still orbit the cube.",
 
   "history.title": "Recent times",
   "history.empty": "Your last 5 solve times will appear here.",
